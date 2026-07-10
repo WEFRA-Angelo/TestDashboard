@@ -322,6 +322,23 @@
     text-overflow:ellipsis;
     white-space:nowrap;
   }
+  .mobile-status-select{
+    display:none;
+    width:100%;
+    margin-top:8px;
+    padding:9px 8px;
+    border:1px solid var(--gray-300);
+    border-radius:8px;
+    font-size:.85rem;
+    font-weight:600;
+    background:#fff;
+    color:var(--gray-900);
+    -webkit-appearance:none;
+    appearance:none;
+  }
+  @media (max-width:800px){
+    .mobile-status-select{ display:block; }
+  }
   .overdue-badge{
     position:absolute;
     top:10px;right:10px;
@@ -947,8 +964,21 @@ function renderBoard(){
           <span class="priority-tag ${p.priority}">${p.priority}</span>
         </div>
         <div class="card-note">${p.note ? p.note : '—'}</div>
+        <select class="mobile-status-select" data-id="${p.id}">
+          ${COLUMNS.map(c=>`<option value="${c.key}" ${c.key===p.status?'selected':''}>${c.label}</option>`).join('')}
+        </select>
       `;
       card.addEventListener('click', ()=> openModal(p.id));
+      const mobileSelect = card.querySelector('.mobile-status-select');
+      mobileSelect.addEventListener('click', (e)=> e.stopPropagation());
+      mobileSelect.addEventListener('change', (e)=>{
+        e.stopPropagation();
+        const newStatus = e.target.value;
+        if(newStatus !== p.status){
+          const newHistory = historyArr(p).concat([{date:todayStr(), text:`Status geändert zu „${STATUS_LABEL[newStatus]}“ (mobile Auswahl)`}]);
+          fbUpdate(p.id, {status: newStatus, history: newHistory});
+        }
+      });
       card.addEventListener('dragstart', (e)=>{
         dragId = p.id;
         card.classList.add('dragging');
@@ -956,6 +986,7 @@ function renderBoard(){
       });
       card.addEventListener('dragend', ()=> card.classList.remove('dragging'));
       cardsEl.appendChild(card);
+    });
     });
 
     cardsEl.addEventListener('dragover', (e)=>{
