@@ -723,7 +723,10 @@ const COLUMNS = [
 const STATUS_LABEL = Object.fromEntries(COLUMNS.map(c=>[c.key,c.label]));
 
 let todoIdCounter = 1;
-function T(text, due, done=false){ return {id: todoIdCounter++, text, due, done}; }
+function T(text, due, done){
+  if(done===undefined) done=false;
+  return {id: todoIdCounter++, text:text, due:due, done:done};
+}
 
 /* Seed-Daten (nur genutzt, falls Firebase-Pfad "verlage" noch leer ist) */
 function buildSeedData(){
@@ -811,7 +814,8 @@ function todayStr(){
   const d = new Date();
   return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 }
-const TODAY = new Date(); TODAY.setHours(0,0,0,0);
+const TODAY = new Date();
+TODAY.setHours(0,0,0,0);
 function dueStatus(dueStr){
   if(!dueStr) return 'future';
   const d = parseDate(dueStr);
@@ -830,14 +834,14 @@ function historyArr(p){
 }
 function cardMeta(p){
   const todos = todosArr(p);
-  const undone = todos.filter(t=>!t.done).sort((a,b)=> parseDate(a.due)-parseDate(b.due));
+  const undone = todos.filter(function(t){ return !t.done; }).sort(function(a,b){ return parseDate(a.due)-parseDate(b.due); });
   const next = undone[0] || null;
-  const overdueCount = undone.filter(t=>dueStatus(t.due)==='overdue').length;
+  const overdueCount = undone.filter(function(t){ return dueStatus(t.due)==='overdue'; }).length;
   let ampel = 'green';
-  if(overdueCount>0) ampel='red';
-  else if(next && dueStatus(next.due)==='soon') ampel='yellow';
-  else if(p.priority==='Hoch') ampel='yellow';
-  return {next, overdueCount, ampel};
+  if(overdueCount>0){ ampel='red'; }
+  else if(next && dueStatus(next.due)==='soon'){ ampel='yellow'; }
+  else if(p.priority==='Hoch'){ ampel='yellow'; }
+  return {next:next, overdueCount:overdueCount, ampel:ampel};
 }
 
 /* ============ State ============ */
@@ -849,23 +853,22 @@ let dragId = null;
 let dataLoaded = false;
 
 /* ============ Firebase: Laden & Live-Sync ============ */
-verlageRef.once('value').then((snap)=>{
+verlageRef.once('value').then(function(snap){
   if(!snap.exists()){
-    // Seed einmalig schreiben
     const seed = buildSeedData();
-    verlageRef.set(seed).catch(err=>console.error('Seed-Fehler:', err));
+    verlageRef.set(seed).catch(function(err){ console.error('Seed-Fehler:', err); });
   }
   attachLiveListener();
-}).catch(err=>{
+}).catch(function(err){
   console.error('Firebase Ladefehler:', err);
   attachLiveListener();
 });
 
 function attachLiveListener(){
-  verlageRef.on('value', (snap)=>{
+  verlageRef.on('value', function(snap){
     dataLoaded = true;
     const val = snap.val() || {};
-    publishers = Object.keys(val).map(key=>{
+    publishers = Object.keys(val).map(function(key){
       const p = val[key] || {};
       return {
         id: key,
@@ -877,35 +880,39 @@ function attachLiveListener(){
         todos: todosArr(p)
       };
     });
-    renderAll(true);
+    renderAll();
   });
 }
 
 /* ============ Firebase Write-Helper ============ */
 function fbUpdate(id, patch){
-  db.ref('verlage/'+id).update(patch).catch(err=>console.error('Speichern fehlgeschlagen:', err));
+  db.ref('verlage/'+id).update(patch).catch(function(err){ console.error('Speichern fehlgeschlagen:', err); });
 }
 function fbSetTodos(id, todos){
-  db.ref('verlage/'+id+'/todos').set(todos).catch(err=>console.error('Speichern fehlgeschlagen:', err));
+  db.ref('verlage/'+id+'/todos').set(todos).catch(function(err){ console.error('Speichern fehlgeschlagen:', err); });
 }
 function fbSetHistory(id, history){
-  db.ref('verlage/'+id+'/history').set(history).catch(err=>console.error('Speichern fehlgeschlagen:', err));
+  db.ref('verlage/'+id+'/history').set(history).catch(function(err){ console.error('Speichern fehlgeschlagen:', err); });
 }
 function fbDelete(id){
-  db.ref('verlage/'+id).remove().catch(err=>console.error('Löschen fehlgeschlagen:', err));
+  db.ref('verlage/'+id).remove().catch(function(err){ console.error('Löschen fehlgeschlagen:', err); });
 }
 function fbCreate(data){
   const newRef = verlageRef.push();
-  newRef.set(data).catch(err=>console.error('Anlegen fehlgeschlagen:', err));
+  newRef.set(data).catch(function(err){ console.error('Anlegen fehlgeschlagen:', err); });
   return newRef.key;
 }
 
 /* ============ Render: KPIs & Progress ============ */
 function renderKPIs(){
-  const liveCount = publishers.filter(p=>p.status==='live').length;
-  const negCount = publishers.filter(p=>p.status==='negotiation').length;
+  const liveCount = publishers.filter(function(p){ return p.status==='live'; }).length;
+  const negCount = publishers.filter(function(p){ return p.status==='negotiation'; }).length;
   let overdueTodos = 0;
-  publishers.forEach(p=> todosArr(p).forEach(t=>{ if(!t.done && dueStatus(t.due)==='overdue') overdueTodos++; }));
+  publishers.forEach(function(p){
+    todosArr(p).forEach(function(t){
+      if(!t.done && dueStatus(t.due)==='overdue'){ overdueTodos++; }
+    });
+  });
 
   document.getElementById('kpiTotal').textContent = TOTAL_VERLAGE;
   document.getElementById('kpiTotalSub').textContent = publishers.length + ' im Board erfasst';
@@ -915,7 +922,7 @@ function renderKPIs(){
   document.getElementById('kpiOverdueSub').textContent = 'Stand: ' + new Date().toLocaleDateString('de-DE');
 
   const pct = Math.round((liveCount/TOTAL_VERLAGE)*100);
-  document.getElementById('progressText').textContent = `${liveCount} von ${TOTAL_VERLAGE} Verlagen standardisiert`;
+  document.getElementById('progressText').textContent = liveCount + ' von ' + TOTAL_VERLAGE + ' Verlagen standardisiert';
   document.getElementById('progressPct').textContent = pct + '%';
   document.getElementById('progressFill').style.width = pct + '%';
 }
@@ -932,183 +939,208 @@ function passesFilter(p){
 function renderBoard(){
   const board = document.getElementById('board');
   board.innerHTML = '';
-  COLUMNS.forEach(col=>{
-    const colPubs = publishers.filter(p=>p.status===col.key && passesFilter(p));
+
+  COLUMNS.forEach(function(col){
+    const colPubs = publishers.filter(function(p){ return p.status===col.key && passesFilter(p); });
+
     const colEl = document.createElement('div');
     colEl.className = 'column';
     colEl.dataset.status = col.key;
-    colEl.innerHTML = `
-      <div class="column-header">
-        <span>${col.label}</span>
-        <span class="count">${colPubs.length}</span>
-      </div>
-      <div class="cards" data-status="${col.key}"></div>
-    `;
+    colEl.innerHTML =
+      '<div class="column-header">' +
+        '<span>' + col.label + '</span>' +
+        '<span class="count">' + colPubs.length + '</span>' +
+      '</div>' +
+      '<div class="cards" data-status="' + col.key + '"></div>';
     board.appendChild(colEl);
 
     const cardsEl = colEl.querySelector('.cards');
-    colPubs.forEach(p=>{
+
+    colPubs.forEach(function(p){
       const meta = cardMeta(p);
       const card = document.createElement('div');
       card.className = 'card';
       card.draggable = true;
       card.dataset.id = p.id;
-      card.innerHTML = `
-        ${meta.overdueCount>0 ? '<span class="overdue-badge">⚠ überfällig</span>' : ''}
-        <div class="card-top">
-          <span class="dot ${meta.ampel}"></span>
-          <span class="card-name">${p.name}</span>
-        </div>
-        <div class="card-meta">
-          📅 ${meta.next ? fmtDate(meta.next.due) : 'kein offenes Todo'}
-          <span class="priority-tag ${p.priority}">${p.priority}</span>
-        </div>
-        <div class="card-note">${p.note ? p.note : '—'}</div>
-        <select class="mobile-status-select" data-id="${p.id}">
-          ${COLUMNS.map(c=>`<option value="${c.key}" ${c.key===p.status?'selected':''}>${c.label}</option>`).join('')}
-        </select>
-      `;
-      card.addEventListener('click', ()=> openModal(p.id));
+
+      const overdueBadgeHtml = meta.overdueCount>0 ? '<span class="overdue-badge">⚠ überfällig</span>' : '';
+      const metaDateText = meta.next ? fmtDate(meta.next.due) : 'kein offenes Todo';
+      const noteText = p.note ? p.note : '—';
+      const optionsHtml = COLUMNS.map(function(c){
+        return '<option value="' + c.key + '"' + (c.key===p.status?' selected':'') + '>' + c.label + '</option>';
+      }).join('');
+
+      card.innerHTML =
+        overdueBadgeHtml +
+        '<div class="card-top">' +
+          '<span class="dot ' + meta.ampel + '"></span>' +
+          '<span class="card-name">' + p.name + '</span>' +
+        '</div>' +
+        '<div class="card-meta">' +
+          '📅 ' + metaDateText +
+          '<span class="priority-tag ' + p.priority + '">' + p.priority + '</span>' +
+        '</div>' +
+        '<div class="card-note">' + noteText + '</div>' +
+        '<select class="mobile-status-select" data-id="' + p.id + '">' + optionsHtml + '</select>';
+
+      card.addEventListener('click', function(){
+        openModal(p.id);
+      });
+
       const mobileSelect = card.querySelector('.mobile-status-select');
-      mobileSelect.addEventListener('click', (e)=> e.stopPropagation());
-      mobileSelect.addEventListener('change', (e)=>{
+      mobileSelect.addEventListener('click', function(e){
+        e.stopPropagation();
+      });
+      mobileSelect.addEventListener('change', function(e){
         e.stopPropagation();
         const newStatus = e.target.value;
         if(newStatus !== p.status){
-          const newHistory = historyArr(p).concat([{date:todayStr(), text:`Status geändert zu „${STATUS_LABEL[newStatus]}“ (mobile Auswahl)`}]);
+          const newHistory = historyArr(p).concat([{date:todayStr(), text:'Status geändert zu „' + STATUS_LABEL[newStatus] + '“ (mobile Auswahl)'}]);
           fbUpdate(p.id, {status: newStatus, history: newHistory});
         }
       });
-      card.addEventListener('dragstart', (e)=>{
+
+      card.addEventListener('dragstart', function(e){
         dragId = p.id;
         card.classList.add('dragging');
         e.dataTransfer.effectAllowed = 'move';
       });
-      card.addEventListener('dragend', ()=> card.classList.remove('dragging'));
+      card.addEventListener('dragend', function(){
+        card.classList.remove('dragging');
+      });
+
       cardsEl.appendChild(card);
     });
 
-    cardsEl.addEventListener('dragover', (e)=>{
+    cardsEl.addEventListener('dragover', function(e){
       e.preventDefault();
       cardsEl.classList.add('drag-over');
     });
-    cardsEl.addEventListener('dragleave', ()=> cardsEl.classList.remove('drag-over'));
-    cardsEl.addEventListener('drop', (e)=>{
+    cardsEl.addEventListener('dragleave', function(){
+      cardsEl.classList.remove('drag-over');
+    });
+    cardsEl.addEventListener('drop', function(e){
       e.preventDefault();
       cardsEl.classList.remove('drag-over');
       if(dragId!=null){
-        const pub = publishers.find(x=>x.id===dragId);
+        const pub = publishers.find(function(x){ return x.id===dragId; });
         if(pub && pub.status !== col.key){
-          const newHistory = historyArr(pub).concat([{date:todayStr(), text:`Status manuell geändert zu „${col.label}“ (Drag & Drop)`}]);
+          const newHistory = historyArr(pub).concat([{date:todayStr(), text:'Status manuell geändert zu „' + col.label + '“ (Drag & Drop)'}]);
           fbUpdate(pub.id, {status: col.key, history: newHistory});
         }
         dragId = null;
       }
     });
   });
+}
 
 /* ============ Render: Reminder Tab ============ */
 function renderReminders(){
   const list = document.getElementById('reminderList');
   let items = [];
-  publishers.forEach(p=>{
-    todosArr(p).filter(t=>!t.done).forEach(t=>{
+  publishers.forEach(function(p){
+    todosArr(p).filter(function(t){ return !t.done; }).forEach(function(t){
       items.push({pub:p.name, pubId:p.id, text:t.text, due:t.due, status:dueStatus(t.due)});
     });
   });
-  items.sort((a,b)=> parseDate(a.due)-parseDate(b.due));
+  items.sort(function(a,b){ return parseDate(a.due)-parseDate(b.due); });
 
   if(items.length===0){
     list.innerHTML = '<div class="reminder-item">Keine offenen Todos vorhanden.</div>';
     return;
   }
 
-  list.innerHTML = items.map(it=>{
+  list.innerHTML = items.map(function(it){
     const tagLabel = it.status==='overdue' ? 'überfällig' : (it.status==='soon' ? 'bald fällig' : 'geplant');
-    return `
-      <div class="reminder-item ${it.status}" data-pubid="${it.pubId}" style="cursor:pointer;">
-        <span class="reminder-date">${fmtDate(it.due)}</span>
-        <span class="reminder-pub">${it.pub}</span>
-        <span class="reminder-text">${it.text}</span>
-        <span class="reminder-tag ${it.status}">${tagLabel}</span>
-      </div>
-    `;
+    return (
+      '<div class="reminder-item ' + it.status + '" data-pubid="' + it.pubId + '" style="cursor:pointer;">' +
+        '<span class="reminder-date">' + fmtDate(it.due) + '</span>' +
+        '<span class="reminder-pub">' + it.pub + '</span>' +
+        '<span class="reminder-text">' + it.text + '</span>' +
+        '<span class="reminder-tag ' + it.status + '">' + tagLabel + '</span>' +
+      '</div>'
+    );
   }).join('');
 
-  list.querySelectorAll('.reminder-item[data-pubid]').forEach(el=>{
-    el.addEventListener('click', ()=> openModal(el.dataset.pubid));
+  list.querySelectorAll('.reminder-item[data-pubid]').forEach(function(el){
+    el.addEventListener('click', function(){
+      openModal(el.dataset.pubid);
+    });
   });
 }
 
 /* ============ Modal: Verlag bearbeiten ============ */
 function openModal(id){
   modalId = id;
-  const p = publishers.find(x=>x.id===id);
+  const p = publishers.find(function(x){ return x.id===id; });
   if(!p) return;
   document.getElementById('modalTitle').textContent = p.name;
 
+  const statusOptions = COLUMNS.map(function(c){
+    return '<option value="' + c.key + '"' + (c.key===p.status?' selected':'') + '>' + c.label + '</option>';
+  }).join('');
+  const priorityOptions = ['Hoch','Mittel','Niedrig'].map(function(pr){
+    return '<option value="' + pr + '"' + (pr===p.priority?' selected':'') + '>' + pr + '</option>';
+  }).join('');
+
   const body = document.getElementById('modalBody');
-  body.innerHTML = `
-    <div class="field-group">
-      <label>Status</label>
-      <select id="modalStatus">
-        ${COLUMNS.map(c=>`<option value="${c.key}" ${c.key===p.status?'selected':''}>${c.label}</option>`).join('')}
-      </select>
-    </div>
-    <div class="field-group">
-      <label>Priorität</label>
-      <select id="modalPriority">
-        ${['Hoch','Mittel','Niedrig'].map(pr=>`<option value="${pr}" ${pr===p.priority?'selected':''}>${pr}</option>`).join('')}
-      </select>
-    </div>
-    <div class="field-group">
-      <label>Notiz</label>
-      <textarea id="modalNote">${p.note||''}</textarea>
-    </div>
-    <div class="field-group">
-      <label>Todo-Liste</label>
-      <div id="modalTodos"></div>
-      <div class="add-todo-row">
-        <input type="text" id="newTodoText" placeholder="Neues Todo…">
-        <input type="date" id="newTodoDue">
-        <button id="addTodoBtn">+ Hinzufügen</button>
-      </div>
-    </div>
-    <div class="field-group">
-      <label>Historie / letzter Kontakt</label>
-      <div id="modalHistory"></div>
-    </div>
-    <div class="modal-footer-actions">
-      <button class="btn-delete" id="deletePubBtn">🗑 Verlag löschen</button>
-    </div>
-  `;
+  body.innerHTML =
+    '<div class="field-group">' +
+      '<label>Status</label>' +
+      '<select id="modalStatus">' + statusOptions + '</select>' +
+    '</div>' +
+    '<div class="field-group">' +
+      '<label>Priorität</label>' +
+      '<select id="modalPriority">' + priorityOptions + '</select>' +
+    '</div>' +
+    '<div class="field-group">' +
+      '<label>Notiz</label>' +
+      '<textarea id="modalNote">' + (p.note||'') + '</textarea>' +
+    '</div>' +
+    '<div class="field-group">' +
+      '<label>Todo-Liste</label>' +
+      '<div id="modalTodos"></div>' +
+      '<div class="add-todo-row">' +
+        '<input type="text" id="newTodoText" placeholder="Neues Todo…">' +
+        '<input type="date" id="newTodoDue">' +
+        '<button id="addTodoBtn">+ Hinzufügen</button>' +
+      '</div>' +
+    '</div>' +
+    '<div class="field-group">' +
+      '<label>Historie / letzter Kontakt</label>' +
+      '<div id="modalHistory"></div>' +
+    '</div>' +
+    '<div class="modal-footer-actions">' +
+      '<button class="btn-delete" id="deletePubBtn">🗑 Verlag löschen</button>' +
+    '</div>';
 
   renderModalTodos(p);
   renderModalHistory(p);
 
-  document.getElementById('modalStatus').addEventListener('change', (e)=>{
+  document.getElementById('modalStatus').addEventListener('change', function(e){
     const newStatus = e.target.value;
-    const newHistory = historyArr(p).concat([{date:todayStr(), text:`Status geändert zu „${STATUS_LABEL[newStatus]}“`}]);
+    const newHistory = historyArr(p).concat([{date:todayStr(), text:'Status geändert zu „' + STATUS_LABEL[newStatus] + '“'}]);
     fbUpdate(p.id, {status: newStatus, history: newHistory});
   });
-  document.getElementById('modalPriority').addEventListener('change', (e)=>{
+  document.getElementById('modalPriority').addEventListener('change', function(e){
     fbUpdate(p.id, {priority: e.target.value});
   });
-  document.getElementById('modalNote').addEventListener('input', (e)=>{
+  document.getElementById('modalNote').addEventListener('input', function(e){
     fbUpdate(p.id, {note: e.target.value});
   });
-  document.getElementById('addTodoBtn').addEventListener('click', ()=>{
+  document.getElementById('addTodoBtn').addEventListener('click', function(){
     const textEl = document.getElementById('newTodoText');
     const dueEl = document.getElementById('newTodoDue');
     const text = textEl.value.trim();
     const due = dueEl.value || todayStr();
     if(!text) return;
-    const newTodo = {id: Date.now(), text, due, done:false};
+    const newTodo = {id: Date.now(), text: text, due: due, done:false};
     const newTodos = todosArr(p).concat([newTodo]);
     fbSetTodos(p.id, newTodos);
-    textEl.value=''; dueEl.value='';
+    textEl.value='';
+    dueEl.value='';
   });
-  document.getElementById('deletePubBtn').addEventListener('click', ()=>{
+  document.getElementById('deletePubBtn').addEventListener('click', function(){
     fbDelete(p.id);
     closeModal();
   });
@@ -1123,38 +1155,42 @@ function renderModalTodos(p){
     el.innerHTML = '<div class="empty-note">Keine Todos vorhanden.</div>';
     return;
   }
-  el.innerHTML = todos.map((t,idx)=>{
+  el.innerHTML = todos.map(function(t, idx){
     const st = dueStatus(t.due);
     const label = t.done ? 'erledigt' : (st==='overdue'?'überfällig':(st==='soon'?'bald fällig':'geplant'));
     const cls = t.done ? 'future' : st;
-    return `
-      <div class="todo-row">
-        <input type="checkbox" data-idx="${idx}" ${t.done?'checked':''}>
-        <span class="todo-text ${t.done?'done':''}">${t.text}</span>
-        <input type="date" class="todo-due ${cls}" data-idx="${idx}" value="${t.due||''}">
-        <button class="todo-del" data-idx="${idx}" title="Löschen">✕</button>
-      </div>
-    `;
+    return (
+      '<div class="todo-row">' +
+        '<input type="checkbox" data-idx="' + idx + '" ' + (t.done?'checked':'') + '>' +
+        '<span class="todo-text ' + (t.done?'done':'') + '">' + t.text + '</span>' +
+        '<input type="date" class="todo-due ' + cls + '" data-idx="' + idx + '" value="' + (t.due||'') + '">' +
+        '<button class="todo-del" data-idx="' + idx + '" title="Löschen">✕</button>' +
+      '</div>'
+    );
   }).join('');
 
-  el.querySelectorAll('input[type="checkbox"]').forEach(cb=>{
-    cb.addEventListener('change', (e)=>{
+  el.querySelectorAll('input[type="checkbox"]').forEach(function(cb){
+    cb.addEventListener('change', function(e){
       const idx = Number(e.target.dataset.idx);
-      const newTodos = todosArr(p).map((t,i)=> i===idx ? {...t, done:e.target.checked} : t);
+      const newTodos = todosArr(p).map(function(t,i){
+        return i===idx ? Object.assign({}, t, {done:e.target.checked}) : t;
+      });
       fbSetTodos(p.id, newTodos);
     });
   });
-  el.querySelectorAll('input[type="date"].todo-due').forEach(inp=>{
-    inp.addEventListener('change', (e)=>{
+  el.querySelectorAll('input[type="date"].todo-due').forEach(function(inp){
+    inp.addEventListener('change', function(e){
       const idx = Number(e.target.dataset.idx);
-      const newTodos = todosArr(p).map((t,i)=> i===idx ? {...t, due:e.target.value} : t);
+      const newTodos = todosArr(p).map(function(t,i){
+        return i===idx ? Object.assign({}, t, {due:e.target.value}) : t;
+      });
       fbSetTodos(p.id, newTodos);
     });
   });
-  el.querySelectorAll('.todo-del').forEach(btn=>{
-    btn.addEventListener('click', (e)=>{
+  el.querySelectorAll('.todo-del').forEach(function(btn){
+    btn.addEventListener('click', function(e){
       const idx = Number(e.target.dataset.idx);
-      const newTodos = todosArr(p).filter((t,i)=> i!==idx);
+      const newTodos = todosArr(p).filter(function(t,i){ return i!==idx; });
       fbSetTodos(p.id, newTodos);
     });
   });
@@ -1167,9 +1203,10 @@ function renderModalHistory(p){
     el.innerHTML = '<div class="empty-note">Noch kein Kontaktverlauf erfasst.</div>';
     return;
   }
-  el.innerHTML = hist.slice().reverse().map(h=>`
-    <div class="history-item"><span class="history-date">${h.date && h.date.includes('-')?fmtDate(h.date):(h.date||'')}</span>${h.text}</div>
-  `).join('');
+  el.innerHTML = hist.slice().reverse().map(function(h){
+    const dateLabel = (h.date && h.date.includes('-')) ? fmtDate(h.date) : (h.date||'');
+    return '<div class="history-item"><span class="history-date">' + dateLabel + '</span>' + h.text + '</div>';
+  }).join('');
 }
 
 function closeModal(){
@@ -1181,38 +1218,44 @@ function closeModal(){
 function openNewPublisherModal(){
   document.getElementById('modalTitle').textContent = 'Neuer Verlag';
   const body = document.getElementById('modalBody');
-  body.innerHTML = `
-    <div class="field-group">
-      <label>Name des Verlags</label>
-      <input type="text" id="newPubName" placeholder="z.B. Musterstadt Verlag GmbH">
-    </div>
-    <div class="field-group">
-      <label>Status</label>
-      <select id="newPubStatus">
-        ${COLUMNS.map(c=>`<option value="${c.key}">${c.label}</option>`).join('')}
-      </select>
-    </div>
-    <div class="field-group">
-      <label>Priorität</label>
-      <select id="newPubPriority">
-        <option value="Hoch">Hoch</option>
-        <option value="Mittel" selected>Mittel</option>
-        <option value="Niedrig">Niedrig</option>
-      </select>
-    </div>
-    <div class="field-group">
-      <label>Notiz</label>
-      <textarea id="newPubNote" placeholder="Optionale Notiz…"></textarea>
-    </div>
-    <div class="modal-footer-actions">
-      <button class="add-todo-row" id="createPubBtn" style="background:var(--blue);color:#fff;border:none;border-radius:8px;padding:9px 16px;font-size:.88rem;font-weight:700;cursor:pointer;">✓ Verlag anlegen</button>
-    </div>
-  `;
-  document.getElementById('createPubBtn').addEventListener('click', ()=>{
+
+  const statusOptions = COLUMNS.map(function(c){
+    return '<option value="' + c.key + '">' + c.label + '</option>';
+  }).join('');
+
+  body.innerHTML =
+    '<div class="field-group">' +
+      '<label>Name des Verlags</label>' +
+      '<input type="text" id="newPubName" placeholder="z.B. Musterstadt Verlag GmbH">' +
+    '</div>' +
+    '<div class="field-group">' +
+      '<label>Status</label>' +
+      '<select id="newPubStatus">' + statusOptions + '</select>' +
+    '</div>' +
+    '<div class="field-group">' +
+      '<label>Priorität</label>' +
+      '<select id="newPubPriority">' +
+        '<option value="Hoch">Hoch</option>' +
+        '<option value="Mittel" selected>Mittel</option>' +
+        '<option value="Niedrig">Niedrig</option>' +
+      '</select>' +
+    '</div>' +
+    '<div class="field-group">' +
+      '<label>Notiz</label>' +
+      '<textarea id="newPubNote" placeholder="Optionale Notiz…"></textarea>' +
+    '</div>' +
+    '<div class="modal-footer-actions">' +
+      '<button id="createPubBtn" style="background:var(--blue);color:#fff;border:none;border-radius:8px;padding:9px 16px;font-size:.88rem;font-weight:700;cursor:pointer;">✓ Verlag anlegen</button>' +
+    '</div>';
+
+  document.getElementById('createPubBtn').addEventListener('click', function(){
     const name = document.getElementById('newPubName').value.trim();
-    if(!name){ document.getElementById('newPubName').focus(); return; }
+    if(!name){
+      document.getElementById('newPubName').focus();
+      return;
+    }
     const data = {
-      name,
+      name: name,
       status: document.getElementById('newPubStatus').value,
       priority: document.getElementById('newPubPriority').value,
       note: document.getElementById('newPubNote').value.trim(),
@@ -1222,6 +1265,7 @@ function openNewPublisherModal(){
     fbCreate(data);
     closeModal();
   });
+
   document.getElementById('overlay').classList.add('show');
 }
 
@@ -1233,19 +1277,19 @@ function renderAll(){
 }
 
 /* ============ Events ============ */
-document.getElementById('searchInput').addEventListener('input', (e)=>{
+document.getElementById('searchInput').addEventListener('input', function(e){
   filters.search = e.target.value;
   renderBoard();
 });
-document.getElementById('statusFilter').addEventListener('change', (e)=>{
+document.getElementById('statusFilter').addEventListener('change', function(e){
   filters.status = e.target.value;
   renderBoard();
 });
-document.getElementById('priorityFilter').addEventListener('change', (e)=>{
+document.getElementById('priorityFilter').addEventListener('change', function(e){
   filters.priority = e.target.value;
   renderBoard();
 });
-document.getElementById('resetFilters').addEventListener('click', ()=>{
+document.getElementById('resetFilters').addEventListener('click', function(){
   filters = {search:'', status:'all', priority:'all'};
   document.getElementById('searchInput').value = '';
   document.getElementById('statusFilter').value = 'all';
@@ -1255,18 +1299,18 @@ document.getElementById('resetFilters').addEventListener('click', ()=>{
 document.getElementById('addNewBtn').addEventListener('click', openNewPublisherModal);
 
 document.getElementById('modalClose').addEventListener('click', closeModal);
-document.getElementById('overlay').addEventListener('click', (e)=>{
+document.getElementById('overlay').addEventListener('click', function(e){
   if(e.target.id==='overlay') closeModal();
 });
 
-document.getElementById('tabBoardBtn').addEventListener('click', ()=>{
+document.getElementById('tabBoardBtn').addEventListener('click', function(){
   activeTab='board';
   document.getElementById('tabBoardBtn').classList.add('active');
   document.getElementById('tabReminderBtn').classList.remove('active');
   document.getElementById('viewBoard').style.display='block';
   document.getElementById('viewReminder').style.display='none';
 });
-document.getElementById('tabReminderBtn').addEventListener('click', ()=>{
+document.getElementById('tabReminderBtn').addEventListener('click', function(){
   activeTab='reminder';
   document.getElementById('tabReminderBtn').classList.add('active');
   document.getElementById('tabBoardBtn').classList.remove('active');
