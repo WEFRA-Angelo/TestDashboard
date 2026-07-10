@@ -987,7 +987,6 @@ function renderBoard(){
       card.addEventListener('dragend', ()=> card.classList.remove('dragging'));
       cardsEl.appendChild(card);
     });
-    });
 
     cardsEl.addEventListener('dragover', (e)=>{
       e.preventDefault();
@@ -1007,7 +1006,6 @@ function renderBoard(){
       }
     });
   });
-}
 
 /* ============ Render: Reminder Tab ============ */
 function renderReminders(){
