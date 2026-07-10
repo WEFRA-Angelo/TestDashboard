@@ -52,6 +52,12 @@
     font-weight:700;
     letter-spacing:.2px;
   }
+  .badge-col{
+    display:flex;
+    flex-direction:column;
+    align-items:flex-end;
+    gap:6px;
+  }
   .draft-badge{
     background:rgba(255,255,255,.18);
     border:1px solid rgba(255,255,255,.35);
@@ -61,6 +67,27 @@
     font-weight:600;
     white-space:nowrap;
   }
+  .sync-badge{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    background:rgba(255,255,255,.12);
+    border:1px solid rgba(255,255,255,.3);
+    padding:3px 10px;
+    border-radius:999px;
+    font-size:.72rem;
+    font-weight:600;
+    white-space:nowrap;
+  }
+  .sync-dot{
+    width:9px;height:9px;border-radius:50%;
+    background:#facc15;
+    flex-shrink:0;
+    box-shadow:0 0 0 2px rgba(255,255,255,.25);
+  }
+  .sync-dot.connected{ background:#4ade80; }
+  .sync-dot.connecting{ background:#facc15; }
+  .sync-dot.offline{ background:#f87171; }
   .demo-note{
     font-size:.78rem;
     opacity:.9;
@@ -163,6 +190,7 @@
     border-radius:var(--radius);
     border:1px solid var(--gray-200);
     box-shadow:var(--shadow);
+    align-items:center;
   }
   .filter-bar input[type="text"], .filter-bar select{
     padding:8px 10px;
@@ -183,6 +211,18 @@
     color:var(--gray-700);
   }
   .filter-bar button.reset:hover{ background:var(--gray-200); }
+  .filter-bar button.addnew{
+    background:var(--blue);
+    border:1px solid var(--blue-dark);
+    border-radius:8px;
+    padding:8px 12px;
+    font-size:.85rem;
+    cursor:pointer;
+    color:#fff;
+    font-weight:600;
+    white-space:nowrap;
+  }
+  .filter-bar button.addnew:hover{ background:var(--blue-dark); }
 
   /* Board */
   .board{
@@ -402,7 +442,7 @@
     letter-spacing:.4px;
     margin-bottom:6px;
   }
-  .field-group select, .field-group textarea{
+  .field-group input[type="text"], .field-group select, .field-group textarea{
     width:100%;
     padding:9px 10px;
     border:1px solid var(--gray-300);
@@ -431,10 +471,45 @@
     border-radius:999px;
     font-weight:700;
     white-space:nowrap;
+    border:none;
+    background:var(--gray-200);
+    color:var(--gray-700);
+    cursor:pointer;
   }
   .todo-due.overdue{ background:#fee2e2; color:var(--red); }
   .todo-due.soon{ background:#fef3c7; color:var(--amber); }
   .todo-due.future{ background:var(--gray-200); color:var(--gray-700); }
+  .todo-del{
+    background:none;
+    border:none;
+    color:var(--gray-500);
+    cursor:pointer;
+    font-size:.85rem;
+  }
+  .todo-del:hover{ color:var(--red); }
+  .add-todo-row{
+    display:flex;
+    gap:8px;
+    margin-top:10px;
+  }
+  .add-todo-row input[type="text"]{ flex:1; }
+  .add-todo-row input[type="date"]{
+    padding:8px 8px;
+    border:1px solid var(--gray-300);
+    border-radius:8px;
+    font-size:.82rem;
+    background:var(--gray-50);
+  }
+  .add-todo-row button{
+    background:var(--blue);
+    color:#fff;
+    border:none;
+    border-radius:8px;
+    padding:8px 12px;
+    font-size:.82rem;
+    cursor:pointer;
+    font-weight:600;
+  }
   .history-item{
     font-size:.84rem;
     padding:8px 0;
@@ -445,11 +520,32 @@
   .history-date{ font-weight:700; color:var(--gray-900); margin-right:6px; }
   .empty-note{ font-size:.85rem; color:var(--gray-500); font-style:italic; }
 
+  .modal-footer-actions{
+    display:flex;
+    justify-content:flex-end;
+    margin-top:6px;
+  }
+  .btn-delete{
+    background:#fef2f2;
+    color:var(--red);
+    border:1px solid #fecaca;
+    border-radius:8px;
+    padding:8px 14px;
+    font-size:.82rem;
+    font-weight:700;
+    cursor:pointer;
+  }
+  .btn-delete:hover{ background:#fee2e2; }
+
   .footer-note{
     text-align:center;
     font-size:.78rem;
     color:var(--gray-500);
     margin-top:30px;
+  }
+  .footer-note .warn{
+    color:var(--amber);
+    font-weight:600;
   }
 
   @media (max-width:800px){
@@ -466,9 +562,12 @@
     <div class="title-row">
       <div>
         <h1>📊 Verlags-Reporting Standardisierung</h1>
-        <div class="demo-note">Entwurf mit Beispieldaten – zeigt den Status der Standardisierungsgespräche mit unseren Reporting-Verlagen (Ziel: XLS/CSV)</div>
+        <div class="demo-note">Entwurf mit Beispieldaten – zeigt den Status der Standardisierungsgespräche mit unseren Reporting-Verlagen (Ziel: XLS/CSV). Live-Sync über Firebase Realtime Database.</div>
       </div>
-      <span class="draft-badge">🧪 PROTOTYP</span>
+      <div class="badge-col">
+        <span class="draft-badge">🧪 PROTOTYP</span>
+        <span class="sync-badge" id="syncBadge"><span class="sync-dot connecting" id="syncDot"></span><span id="syncText">Verbindung wird hergestellt…</span></span>
+      </div>
     </div>
     <div class="progress-wrap">
       <div class="progress-label">
@@ -488,7 +587,7 @@
     <div class="kpi-card">
       <div class="label">Gesamtzahl Verlage</div>
       <div class="value" id="kpiTotal">100</div>
-      <div class="sub" id="kpiTotalSub">18 im Demo-Board erfasst</div>
+      <div class="sub" id="kpiTotalSub">0 im Board erfasst</div>
     </div>
     <div class="kpi-card">
       <div class="label">Live / Standardisiert</div>
@@ -503,7 +602,7 @@
     <div class="kpi-card overdue">
       <div class="label">⚠ Überfällige Todos</div>
       <div class="value" id="kpiOverdue">0</div>
-      <div class="sub">Stand: 09.07.2026</div>
+      <div class="sub" id="kpiOverdueSub">Stand: heute</div>
     </div>
   </div>
 
@@ -529,6 +628,7 @@
         <option value="Niedrig">Niedrig</option>
       </select>
       <button class="reset" id="resetFilters">Zurücksetzen</button>
+      <button class="addnew" id="addNewBtn">+ Neuer Verlag</button>
     </div>
 
     <div class="board" id="board"></div>
@@ -539,7 +639,8 @@
     <div class="reminder-list" id="reminderList"></div>
   </div>
 
-  <div class="footer-note">⚠️ Demo-Daten, Änderungen werden nicht dauerhaft gespeichert – dient der Präsentation des Konzepts.</div>
+  <div class="footer-note">⚠️ Live-Daten via Firebase Realtime Database – Änderungen werden für alle Nutzer sofort gespeichert und synchronisiert.<br>
+  <span class="warn">Hinweis: Test-Setup mit offenen Firebase-Testmodus-Regeln (30 Tage gültig).</span> Für den produktiven Einsatz mit echten Verlagsdaten müssen die Firebase Security Rules noch abgesichert werden (aktuell kein Schreibschutz gegen Zugriffe aus dem Internet).</div>
 </div>
 
 <div class="overlay" id="overlay">
@@ -552,9 +653,48 @@
   </div>
 </div>
 
+<!-- Firebase SDK (compat, v10) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+
 <script>
-/* ============ Daten ============ */
-const TODAY = new Date('2026-07-09T00:00:00');
+/* ==========================================================================
+   FIREBASE-ANBINDUNG – WICHTIGER HINWEIS:
+   Dies ist ein Test-Setup mit offenen Firebase Realtime Database
+   Testmodus-Regeln (30 Tage gültig, kein Auth-Schutz). Für den produktiven
+   Einsatz mit echten Verlagsdaten MÜSSEN die Firebase Security Rules noch
+   abgesichert werden (kein offener Lese-/Schreibzugriff für jeden im Internet).
+   ========================================================================== */
+const firebaseConfig = {
+  apiKey: "AIzaSyB6BpIB-v-1m9yQdqF7f8ak3VGziWyciYU",
+  authDomain: "testdashboard-db.firebaseapp.com",
+  databaseURL: "https://testdashboard-db-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "testdashboard-db",
+  storageBucket: "testdashboard-db.firebasestorage.app",
+  messagingSenderId: "873738693040",
+  appId: "1:873738693040:web:fd4641d6310ec74b364e75",
+  measurementId: "G-MF0D6LMBDE"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+const verlageRef = db.ref('verlage');
+
+/* ============ Sync-Status Anzeige ============ */
+function setSyncStatus(state){
+  const dot = document.getElementById('syncDot');
+  const text = document.getElementById('syncText');
+  dot.className = 'sync-dot ' + state;
+  if(state==='connected'){ text.textContent = 'Verbunden'; }
+  else if(state==='connecting'){ text.textContent = 'Verbindung wird hergestellt…'; }
+  else { text.textContent = 'Offline – Änderungen werden nicht gespeichert'; }
+}
+db.ref('.info/connected').on('value', (snap)=>{
+  if(snap.val()===true){ setSyncStatus('connected'); }
+  else { setSyncStatus('offline'); }
+});
+
+/* ============ Daten / Helper ============ */
 const TOTAL_VERLAGE = 100;
 
 const COLUMNS = [
@@ -568,96 +708,112 @@ const STATUS_LABEL = Object.fromEntries(COLUMNS.map(c=>[c.key,c.label]));
 let todoIdCounter = 1;
 function T(text, due, done=false){ return {id: todoIdCounter++, text, due, done}; }
 
-let publishers = [
-  {id:1, name:"Nordmedia Verlag GmbH", status:'live', priority:'Niedrig',
-   note:"XLS-Standard seit Juni aktiv, läuft stabil.",
-   history:[{date:'2026-05-02',text:'Vertrag zur Standardisierung unterschrieben'},{date:'2026-06-01',text:'Erste XLS-Lieferung erhalten, passt einwandfrei.'}],
-   todos:[T('Quartalscheck durchführen','2026-09-01')]},
-  {id:2, name:"Rheinland Presse Verlag", status:'live', priority:'Mittel',
-   note:"CSV-Format läuft, kleine Anpassung bei Spaltennamen nötig.",
-   history:[{date:'2026-04-10',text:'Standard vereinbart'}],
-   todos:[T('Spaltennamen-Update prüfen','2026-07-14')]},
-  {id:3, name:"Baltic Publishing House", status:'live', priority:'Hoch',
-   note:"Wichtiger Partner, XLS läuft seit April fehlerfrei.",
-   history:[{date:'2026-03-20',text:'Kickoff Standardisierung'}],
-   todos:[T('Feedback-Call vereinbaren','2026-07-08')]},
-  {id:4, name:"Alpen Verlagsgruppe", status:'live', priority:'Niedrig',
-   note:"Läuft automatisiert, aktuell keine offenen Punkte.",
-   history:[{date:'2026-02-15',text:'Standard vereinbart'}],
-   todos:[T('Jahresreview einplanen','2026-12-01')]},
-  {id:5, name:"Erzgebirge Verlag", status:'live', priority:'Mittel',
-   note:"XLS-Reports seit Mai, gelegentlich leicht verspätet.",
-   history:[{date:'2026-05-01',text:'Standard vereinbart'}],
-   todos:[T('Verspätungen ansprechen','2026-07-09')]},
-
-  {id:6, name:"Süddeutsche Medienhaus AG", status:'negotiation', priority:'Hoch',
-   note:"Verhandlung über CSV-Feldstruktur, Rückmeldung ausstehend.",
-   history:[{date:'2026-06-01',text:'Erstes Verhandlungsgespräch'}],
-   todos:[T('Rückmeldung zu Feldstruktur einholen','2026-07-05')]},
-  {id:7, name:"Hanseatica Verlag & Co", status:'negotiation', priority:'Mittel',
-   note:"Prüft intern XLS-Vorlage, Antwort in Kürze erwartet.",
-   history:[{date:'2026-06-15',text:'Vorlage versendet'}],
-   todos:[T('Nachfassen zur XLS-Vorlage','2026-07-12')]},
-  {id:8, name:"Elbtal Medien Gruppe", status:'negotiation', priority:'Niedrig',
-   note:"Kein Zeitdruck, Gespräch läuft entspannt.",
-   history:[{date:'2026-06-20',text:'Gespräch begonnen'}],
-   todos:[T('Zwischenstatus einholen','2026-07-20')]},
-  {id:9, name:"Weser Kurier Verlagsgruppe", status:'negotiation', priority:'Hoch',
-   note:"Termin verpasst, dringend nachfassen!",
-   history:[{date:'2026-05-25',text:'Erstgespräch'}],
-   todos:[T('Dringend nachfassen – Termin verpasst','2026-07-01')]},
-  {id:10, name:"Taunus Presse Gruppe", status:'negotiation', priority:'Mittel',
-   note:"Detailfragen zu CSV-Trennzeichen offen.",
-   history:[{date:'2026-06-28',text:'Technisches Gespräch'}],
-   todos:[T('Trennzeichen final klären','2026-07-11')]},
-
-  {id:11, name:"Franken Verlag AG", status:'initial', priority:'Mittel',
-   note:"Erstkontakt hergestellt, wartet auf internen Entscheider.",
-   history:[{date:'2026-07-01',text:'Erste E-Mail gesendet'}],
-   todos:[T('Entscheider-Kontakt herstellen','2026-07-15')]},
-  {id:12, name:"Schwarzwald Presse Verlag", status:'initial', priority:'Hoch',
-   note:"Antwort seit Wochen überfällig, Eskalation prüfen.",
-   history:[{date:'2026-06-10',text:'Erstkontakt per Telefon'}],
-   todos:[T('Eskalation prüfen / Telefonat','2026-07-03')]},
-  {id:13, name:"Nordsee Zeitungsverlag", status:'initial', priority:'Niedrig',
-   note:"Interesse signalisiert, kein akuter Bedarf.",
-   history:[{date:'2026-07-02',text:'Kontaktaufnahme per Mail'}],
-   todos:[T('Follow-up Mail senden','2026-08-01')]},
-  {id:14, name:"Isar Medienwerk GmbH", status:'initial', priority:'Mittel',
-   note:"Termin für Detailgespräch vereinbart.",
-   history:[{date:'2026-07-03',text:'Termin vereinbart'}],
-   todos:[T('Detailgespräch vorbereiten','2026-07-10')]},
-
-  {id:15, name:"Donau Verlagshaus", status:'none', priority:'Niedrig',
-   note:"Noch keine Kontaktaufnahme erfolgt.",
-   history:[],
-   todos:[T('Erstkontakt herstellen','2026-07-25')]},
-  {id:16, name:"Moselland Medien Verlag", status:'none', priority:'Mittel',
-   note:"Auf Kontaktliste für diese Woche gesetzt.",
-   history:[],
-   todos:[T('Erstkontakt herstellen','2026-07-09')]},
-  {id:17, name:"Spreewald Verlag GmbH", status:'none', priority:'Hoch',
-   note:"Prioritär – Kontakt hätte längst erfolgen sollen.",
-   history:[],
-   todos:[T('Dringend Erstkontakt herstellen','2026-06-28')]},
-  {id:18, name:"Ostsee Medienhaus", status:'none', priority:'Niedrig',
-   note:"Niedrige Priorität, später einplanen.",
-   history:[],
-   todos:[T('Erstkontakt einplanen','2026-09-01')]}
-];
+/* Seed-Daten (nur genutzt, falls Firebase-Pfad "verlage" noch leer ist) */
+function buildSeedData(){
+  todoIdCounter = 1;
+  return {
+    p1: {id:'p1', name:"Nordmedia Verlag GmbH", status:'live', priority:'Niedrig',
+     note:"XLS-Standard seit Juni aktiv, läuft stabil.",
+     history:[{date:'2026-05-02',text:'Vertrag zur Standardisierung unterschrieben'},{date:'2026-06-01',text:'Erste XLS-Lieferung erhalten, passt einwandfrei.'}],
+     todos:[T('Quartalscheck durchführen','2026-09-01')]},
+    p2: {id:'p2', name:"Rheinland Presse Verlag", status:'live', priority:'Mittel',
+     note:"CSV-Format läuft, kleine Anpassung bei Spaltennamen nötig.",
+     history:[{date:'2026-04-10',text:'Standard vereinbart'}],
+     todos:[T('Spaltennamen-Update prüfen','2026-07-14')]},
+    p3: {id:'p3', name:"Baltic Publishing House", status:'live', priority:'Hoch',
+     note:"Wichtiger Partner, XLS läuft seit April fehlerfrei.",
+     history:[{date:'2026-03-20',text:'Kickoff Standardisierung'}],
+     todos:[T('Feedback-Call vereinbaren','2026-07-08')]},
+    p4: {id:'p4', name:"Alpen Verlagsgruppe", status:'live', priority:'Niedrig',
+     note:"Läuft automatisiert, aktuell keine offenen Punkte.",
+     history:[{date:'2026-02-15',text:'Standard vereinbart'}],
+     todos:[T('Jahresreview einplanen','2026-12-01')]},
+    p5: {id:'p5', name:"Erzgebirge Verlag", status:'live', priority:'Mittel',
+     note:"XLS-Reports seit Mai, gelegentlich leicht verspätet.",
+     history:[{date:'2026-05-01',text:'Standard vereinbart'}],
+     todos:[T('Verspätungen ansprechen','2026-07-09')]},
+    p6: {id:'p6', name:"Süddeutsche Medienhaus AG", status:'negotiation', priority:'Hoch',
+     note:"Verhandlung über CSV-Feldstruktur, Rückmeldung ausstehend.",
+     history:[{date:'2026-06-01',text:'Erstes Verhandlungsgespräch'}],
+     todos:[T('Rückmeldung zu Feldstruktur einholen','2026-07-05')]},
+    p7: {id:'p7', name:"Hanseatica Verlag & Co", status:'negotiation', priority:'Mittel',
+     note:"Prüft intern XLS-Vorlage, Antwort in Kürze erwartet.",
+     history:[{date:'2026-06-15',text:'Vorlage versendet'}],
+     todos:[T('Nachfassen zur XLS-Vorlage','2026-07-12')]},
+    p8: {id:'p8', name:"Elbtal Medien Gruppe", status:'negotiation', priority:'Niedrig',
+     note:"Kein Zeitdruck, Gespräch läuft entspannt.",
+     history:[{date:'2026-06-20',text:'Gespräch begonnen'}],
+     todos:[T('Zwischenstatus einholen','2026-07-20')]},
+    p9: {id:'p9', name:"Weser Kurier Verlagsgruppe", status:'negotiation', priority:'Hoch',
+     note:"Termin verpasst, dringend nachfassen!",
+     history:[{date:'2026-05-25',text:'Erstgespräch'}],
+     todos:[T('Dringend nachfassen – Termin verpasst','2026-07-01')]},
+    p10: {id:'p10', name:"Taunus Presse Gruppe", status:'negotiation', priority:'Mittel',
+     note:"Detailfragen zu CSV-Trennzeichen offen.",
+     history:[{date:'2026-06-28',text:'Technisches Gespräch'}],
+     todos:[T('Trennzeichen final klären','2026-07-11')]},
+    p11: {id:'p11', name:"Franken Verlag AG", status:'initial', priority:'Mittel',
+     note:"Erstkontakt hergestellt, wartet auf internen Entscheider.",
+     history:[{date:'2026-07-01',text:'Erste E-Mail gesendet'}],
+     todos:[T('Entscheider-Kontakt herstellen','2026-07-15')]},
+    p12: {id:'p12', name:"Schwarzwald Presse Verlag", status:'initial', priority:'Hoch',
+     note:"Antwort seit Wochen überfällig, Eskalation prüfen.",
+     history:[{date:'2026-06-10',text:'Erstkontakt per Telefon'}],
+     todos:[T('Eskalation prüfen / Telefonat','2026-07-03')]},
+    p13: {id:'p13', name:"Nordsee Zeitungsverlag", status:'initial', priority:'Niedrig',
+     note:"Interesse signalisiert, kein akuter Bedarf.",
+     history:[{date:'2026-07-02',text:'Kontaktaufnahme per Mail'}],
+     todos:[T('Follow-up Mail senden','2026-08-01')]},
+    p14: {id:'p14', name:"Isar Medienwerk GmbH", status:'initial', priority:'Mittel',
+     note:"Termin für Detailgespräch vereinbart.",
+     history:[{date:'2026-07-03',text:'Termin vereinbart'}],
+     todos:[T('Detailgespräch vorbereiten','2026-07-10')]},
+    p15: {id:'p15', name:"Donau Verlagshaus", status:'none', priority:'Niedrig',
+     note:"Noch keine Kontaktaufnahme erfolgt.",
+     history:[],
+     todos:[T('Erstkontakt herstellen','2026-07-25')]},
+    p16: {id:'p16', name:"Moselland Medien Verlag", status:'none', priority:'Mittel',
+     note:"Auf Kontaktliste für diese Woche gesetzt.",
+     history:[],
+     todos:[T('Erstkontakt herstellen','2026-07-09')]},
+    p17: {id:'p17', name:"Spreewald Verlag GmbH", status:'none', priority:'Hoch',
+     note:"Prioritär – Kontakt hätte längst erfolgen sollen.",
+     history:[],
+     todos:[T('Dringend Erstkontakt herstellen','2026-06-28')]},
+    p18: {id:'p18', name:"Ostsee Medienhaus", status:'none', priority:'Niedrig',
+     note:"Niedrige Priorität, später einplanen.",
+     history:[],
+     todos:[T('Erstkontakt einplanen','2026-09-01')]}
+  };
+}
 
 /* ============ Helper ============ */
 function parseDate(s){ return new Date(s+'T00:00:00'); }
 function fmtDate(s){ if(!s) return '–'; const d=parseDate(s); return d.toLocaleDateString('de-DE'); }
+function todayStr(){
+  const d = new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+const TODAY = new Date(); TODAY.setHours(0,0,0,0);
 function dueStatus(dueStr){
+  if(!dueStr) return 'future';
   const d = parseDate(dueStr);
   const diff = Math.round((d - TODAY)/86400000);
   if(diff < 0) return 'overdue';
   if(diff <= 7) return 'soon';
   return 'future';
 }
+function todosArr(p){
+  if(!p.todos) return [];
+  return Array.isArray(p.todos) ? p.todos.filter(Boolean) : Object.values(p.todos);
+}
+function historyArr(p){
+  if(!p.history) return [];
+  return Array.isArray(p.history) ? p.history.filter(Boolean) : Object.values(p.history);
+}
 function cardMeta(p){
-  const undone = p.todos.filter(t=>!t.done).sort((a,b)=> parseDate(a.due)-parseDate(b.due));
+  const todos = todosArr(p);
+  const undone = todos.filter(t=>!t.done).sort((a,b)=> parseDate(a.due)-parseDate(b.due));
   const next = undone[0] || null;
   const overdueCount = undone.filter(t=>dueStatus(t.due)==='overdue').length;
   let ampel = 'green';
@@ -668,23 +824,78 @@ function cardMeta(p){
 }
 
 /* ============ State ============ */
+let publishers = []; // array of publisher objects, each with .id = firebase key
 let filters = {search:'', status:'all', priority:'all'};
 let activeTab = 'board';
 let modalId = null;
 let dragId = null;
+let dataLoaded = false;
+
+/* ============ Firebase: Laden & Live-Sync ============ */
+verlageRef.once('value').then((snap)=>{
+  if(!snap.exists()){
+    // Seed einmalig schreiben
+    const seed = buildSeedData();
+    verlageRef.set(seed).catch(err=>console.error('Seed-Fehler:', err));
+  }
+  attachLiveListener();
+}).catch(err=>{
+  console.error('Firebase Ladefehler:', err);
+  attachLiveListener();
+});
+
+function attachLiveListener(){
+  verlageRef.on('value', (snap)=>{
+    dataLoaded = true;
+    const val = snap.val() || {};
+    publishers = Object.keys(val).map(key=>{
+      const p = val[key] || {};
+      return {
+        id: key,
+        name: p.name || '(Unbenannt)',
+        status: p.status || 'none',
+        priority: p.priority || 'Mittel',
+        note: p.note || '',
+        history: historyArr(p),
+        todos: todosArr(p)
+      };
+    });
+    renderAll(true);
+  });
+}
+
+/* ============ Firebase Write-Helper ============ */
+function fbUpdate(id, patch){
+  db.ref('verlage/'+id).update(patch).catch(err=>console.error('Speichern fehlgeschlagen:', err));
+}
+function fbSetTodos(id, todos){
+  db.ref('verlage/'+id+'/todos').set(todos).catch(err=>console.error('Speichern fehlgeschlagen:', err));
+}
+function fbSetHistory(id, history){
+  db.ref('verlage/'+id+'/history').set(history).catch(err=>console.error('Speichern fehlgeschlagen:', err));
+}
+function fbDelete(id){
+  db.ref('verlage/'+id).remove().catch(err=>console.error('Löschen fehlgeschlagen:', err));
+}
+function fbCreate(data){
+  const newRef = verlageRef.push();
+  newRef.set(data).catch(err=>console.error('Anlegen fehlgeschlagen:', err));
+  return newRef.key;
+}
 
 /* ============ Render: KPIs & Progress ============ */
 function renderKPIs(){
   const liveCount = publishers.filter(p=>p.status==='live').length;
   const negCount = publishers.filter(p=>p.status==='negotiation').length;
   let overdueTodos = 0;
-  publishers.forEach(p=> p.todos.forEach(t=>{ if(!t.done && dueStatus(t.due)==='overdue') overdueTodos++; }));
+  publishers.forEach(p=> todosArr(p).forEach(t=>{ if(!t.done && dueStatus(t.due)==='overdue') overdueTodos++; }));
 
   document.getElementById('kpiTotal').textContent = TOTAL_VERLAGE;
-  document.getElementById('kpiTotalSub').textContent = publishers.length + ' im Demo-Board erfasst';
+  document.getElementById('kpiTotalSub').textContent = publishers.length + ' im Board erfasst';
   document.getElementById('kpiLive').textContent = liveCount;
   document.getElementById('kpiNegotiation').textContent = negCount;
   document.getElementById('kpiOverdue').textContent = overdueTodos;
+  document.getElementById('kpiOverdueSub').textContent = 'Stand: ' + new Date().toLocaleDateString('de-DE');
 
   const pct = Math.round((liveCount/TOTAL_VERLAGE)*100);
   document.getElementById('progressText').textContent = `${liveCount} von ${TOTAL_VERLAGE} Verlagen standardisiert`;
@@ -757,12 +968,11 @@ function renderBoard(){
       cardsEl.classList.remove('drag-over');
       if(dragId!=null){
         const pub = publishers.find(x=>x.id===dragId);
-        if(pub){
-          pub.status = col.key;
-          pub.history.push({date:'09.07.2026', text:`Status manuell geändert zu „${col.label}“ (Drag & Drop)`});
+        if(pub && pub.status !== col.key){
+          const newHistory = historyArr(pub).concat([{date:todayStr(), text:`Status manuell geändert zu „${col.label}“ (Drag & Drop)`}]);
+          fbUpdate(pub.id, {status: col.key, history: newHistory});
         }
         dragId = null;
-        renderAll();
       }
     });
   });
@@ -773,7 +983,7 @@ function renderReminders(){
   const list = document.getElementById('reminderList');
   let items = [];
   publishers.forEach(p=>{
-    p.todos.filter(t=>!t.done).forEach(t=>{
+    todosArr(p).filter(t=>!t.done).forEach(t=>{
       items.push({pub:p.name, pubId:p.id, text:t.text, due:t.due, status:dueStatus(t.due)});
     });
   });
@@ -797,11 +1007,11 @@ function renderReminders(){
   }).join('');
 
   list.querySelectorAll('.reminder-item[data-pubid]').forEach(el=>{
-    el.addEventListener('click', ()=> openModal(Number(el.dataset.pubid)));
+    el.addEventListener('click', ()=> openModal(el.dataset.pubid));
   });
 }
 
-/* ============ Modal ============ */
+/* ============ Modal: Verlag bearbeiten ============ */
 function openModal(id){
   modalId = id;
   const p = publishers.find(x=>x.id===id);
@@ -829,10 +1039,18 @@ function openModal(id){
     <div class="field-group">
       <label>Todo-Liste</label>
       <div id="modalTodos"></div>
+      <div class="add-todo-row">
+        <input type="text" id="newTodoText" placeholder="Neues Todo…">
+        <input type="date" id="newTodoDue">
+        <button id="addTodoBtn">+ Hinzufügen</button>
+      </div>
     </div>
     <div class="field-group">
       <label>Historie / letzter Kontakt</label>
       <div id="modalHistory"></div>
+    </div>
+    <div class="modal-footer-actions">
+      <button class="btn-delete" id="deletePubBtn">🗑 Verlag löschen</button>
     </div>
   `;
 
@@ -840,17 +1058,30 @@ function openModal(id){
   renderModalHistory(p);
 
   document.getElementById('modalStatus').addEventListener('change', (e)=>{
-    p.status = e.target.value;
-    renderAll();
+    const newStatus = e.target.value;
+    const newHistory = historyArr(p).concat([{date:todayStr(), text:`Status geändert zu „${STATUS_LABEL[newStatus]}“`}]);
+    fbUpdate(p.id, {status: newStatus, history: newHistory});
   });
   document.getElementById('modalPriority').addEventListener('change', (e)=>{
-    p.priority = e.target.value;
-    renderAll(true);
+    fbUpdate(p.id, {priority: e.target.value});
   });
   document.getElementById('modalNote').addEventListener('input', (e)=>{
-    p.note = e.target.value;
-    renderBoard();
-    renderKPIs();
+    fbUpdate(p.id, {note: e.target.value});
+  });
+  document.getElementById('addTodoBtn').addEventListener('click', ()=>{
+    const textEl = document.getElementById('newTodoText');
+    const dueEl = document.getElementById('newTodoDue');
+    const text = textEl.value.trim();
+    const due = dueEl.value || todayStr();
+    if(!text) return;
+    const newTodo = {id: Date.now(), text, due, done:false};
+    const newTodos = todosArr(p).concat([newTodo]);
+    fbSetTodos(p.id, newTodos);
+    textEl.value=''; dueEl.value='';
+  });
+  document.getElementById('deletePubBtn').addEventListener('click', ()=>{
+    fbDelete(p.id);
+    closeModal();
   });
 
   document.getElementById('overlay').classList.add('show');
@@ -858,41 +1089,57 @@ function openModal(id){
 
 function renderModalTodos(p){
   const el = document.getElementById('modalTodos');
-  if(p.todos.length===0){
+  const todos = todosArr(p);
+  if(todos.length===0){
     el.innerHTML = '<div class="empty-note">Keine Todos vorhanden.</div>';
     return;
   }
-  el.innerHTML = p.todos.map(t=>{
+  el.innerHTML = todos.map((t,idx)=>{
     const st = dueStatus(t.due);
     const label = t.done ? 'erledigt' : (st==='overdue'?'überfällig':(st==='soon'?'bald fällig':'geplant'));
     const cls = t.done ? 'future' : st;
     return `
       <div class="todo-row">
-        <input type="checkbox" data-todoid="${t.id}" ${t.done?'checked':''}>
+        <input type="checkbox" data-idx="${idx}" ${t.done?'checked':''}>
         <span class="todo-text ${t.done?'done':''}">${t.text}</span>
-        <span class="todo-due ${cls}">${fmtDate(t.due)} · ${label}</span>
+        <input type="date" class="todo-due ${cls}" data-idx="${idx}" value="${t.due||''}">
+        <button class="todo-del" data-idx="${idx}" title="Löschen">✕</button>
       </div>
     `;
   }).join('');
 
   el.querySelectorAll('input[type="checkbox"]').forEach(cb=>{
     cb.addEventListener('change', (e)=>{
-      const todo = p.todos.find(t=>t.id===Number(e.target.dataset.todoid));
-      if(todo) todo.done = e.target.checked;
-      renderModalTodos(p);
-      renderAll(true);
+      const idx = Number(e.target.dataset.idx);
+      const newTodos = todosArr(p).map((t,i)=> i===idx ? {...t, done:e.target.checked} : t);
+      fbSetTodos(p.id, newTodos);
+    });
+  });
+  el.querySelectorAll('input[type="date"].todo-due').forEach(inp=>{
+    inp.addEventListener('change', (e)=>{
+      const idx = Number(e.target.dataset.idx);
+      const newTodos = todosArr(p).map((t,i)=> i===idx ? {...t, due:e.target.value} : t);
+      fbSetTodos(p.id, newTodos);
+    });
+  });
+  el.querySelectorAll('.todo-del').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      const idx = Number(e.target.dataset.idx);
+      const newTodos = todosArr(p).filter((t,i)=> i!==idx);
+      fbSetTodos(p.id, newTodos);
     });
   });
 }
 
 function renderModalHistory(p){
   const el = document.getElementById('modalHistory');
-  if(p.history.length===0){
+  const hist = historyArr(p);
+  if(hist.length===0){
     el.innerHTML = '<div class="empty-note">Noch kein Kontaktverlauf erfasst.</div>';
     return;
   }
-  el.innerHTML = p.history.slice().reverse().map(h=>`
-    <div class="history-item"><span class="history-date">${h.date.includes('-')?fmtDate(h.date):h.date}</span>${h.text}</div>
+  el.innerHTML = hist.slice().reverse().map(h=>`
+    <div class="history-item"><span class="history-date">${h.date && h.date.includes('-')?fmtDate(h.date):(h.date||'')}</span>${h.text}</div>
   `).join('');
 }
 
@@ -901,14 +1148,59 @@ function closeModal(){
   document.getElementById('overlay').classList.remove('show');
 }
 
+/* ============ Neuer Verlag ============ */
+function openNewPublisherModal(){
+  document.getElementById('modalTitle').textContent = 'Neuer Verlag';
+  const body = document.getElementById('modalBody');
+  body.innerHTML = `
+    <div class="field-group">
+      <label>Name des Verlags</label>
+      <input type="text" id="newPubName" placeholder="z.B. Musterstadt Verlag GmbH">
+    </div>
+    <div class="field-group">
+      <label>Status</label>
+      <select id="newPubStatus">
+        ${COLUMNS.map(c=>`<option value="${c.key}">${c.label}</option>`).join('')}
+      </select>
+    </div>
+    <div class="field-group">
+      <label>Priorität</label>
+      <select id="newPubPriority">
+        <option value="Hoch">Hoch</option>
+        <option value="Mittel" selected>Mittel</option>
+        <option value="Niedrig">Niedrig</option>
+      </select>
+    </div>
+    <div class="field-group">
+      <label>Notiz</label>
+      <textarea id="newPubNote" placeholder="Optionale Notiz…"></textarea>
+    </div>
+    <div class="modal-footer-actions">
+      <button class="add-todo-row" id="createPubBtn" style="background:var(--blue);color:#fff;border:none;border-radius:8px;padding:9px 16px;font-size:.88rem;font-weight:700;cursor:pointer;">✓ Verlag anlegen</button>
+    </div>
+  `;
+  document.getElementById('createPubBtn').addEventListener('click', ()=>{
+    const name = document.getElementById('newPubName').value.trim();
+    if(!name){ document.getElementById('newPubName').focus(); return; }
+    const data = {
+      name,
+      status: document.getElementById('newPubStatus').value,
+      priority: document.getElementById('newPubPriority').value,
+      note: document.getElementById('newPubNote').value.trim(),
+      history: [{date: todayStr(), text: 'Verlag angelegt'}],
+      todos: []
+    };
+    fbCreate(data);
+    closeModal();
+  });
+  document.getElementById('overlay').classList.add('show');
+}
+
 /* ============ Global render ============ */
-function renderAll(keepModal){
+function renderAll(){
   renderKPIs();
   renderBoard();
   renderReminders();
-  if(keepModal && modalId!=null){
-    // refresh title (name doesn't change) — nothing else needed since modal binds live object
-  }
 }
 
 /* ============ Events ============ */
@@ -931,6 +1223,7 @@ document.getElementById('resetFilters').addEventListener('click', ()=>{
   document.getElementById('priorityFilter').value = 'all';
   renderBoard();
 });
+document.getElementById('addNewBtn').addEventListener('click', openNewPublisherModal);
 
 document.getElementById('modalClose').addEventListener('click', closeModal);
 document.getElementById('overlay').addEventListener('click', (e)=>{
