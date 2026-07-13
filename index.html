@@ -60,11 +60,13 @@
   .add-form button{padding:8px 14px;border-radius:8px;border:none;cursor:pointer;font-weight:600;}
   #confirmAddVerlag{background:var(--green);color:#fff;}
   #cancelAddVerlag{background:#eee;color:#333;}
-  main#mainContent{padding:0 20px 30px 20px;}
+main#mainContent{padding:0 20px 30px 20px;}
   .board{display:flex;gap:16px;overflow-x:auto;padding:6px 0 16px 0;align-items:flex-start;}
   .board-column{background:#e9ecf3;border-radius:var(--radius);min-width:290px;max-width:320px;flex:1 0 290px;display:flex;flex-direction:column;max-height:calc(100vh - 230px);}
   .column-header{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;font-weight:700;font-size:0.95rem;border-bottom:2px solid #d7dbe6;}
   .column-count{background:#fff;border-radius:12px;padding:2px 9px;font-size:0.8rem;color:var(--muted);}
+  .column-sort{padding:8px 14px 0 14px;}
+  .column-sort select{width:100%;padding:6px 8px;border-radius:7px;border:1px solid #cfd5e3;font-size:0.78rem;background:#fff;color:var(--text);}
   .card-list{padding:10px;display:flex;flex-direction:column;gap:10px;overflow-y:auto;flex:1;min-height:60px;}
   .card-list.drag-over{background:#dbe2fb;}
   .kanban-card{background:var(--card-bg);border-radius:10px;padding:12px;box-shadow:var(--shadow);cursor:pointer;border:1px solid var(--border);transition:box-shadow .15s,transform .15s;}
@@ -87,6 +89,35 @@
   .status-select{width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--border);font-size:0.82rem;background:#f9fafc;}
   .empty-hint{color:var(--muted);font-size:0.85rem;padding:8px;text-align:center;}
   footer{text-align:center;color:var(--muted);font-size:0.8rem;padding:16px;border-top:1px solid var(--border);background:#fff;}
+
+  /* KPI accent tile */
+  .kpi-tile.kpi-accent{background:linear-gradient(135deg,#27ae60,#1e8449);box-shadow:0 0 0 1px rgba(255,255,255,0.2) inset;}
+  .kpi-tile.kpi-accent .kpi-value{font-size:1.5rem;}
+
+  /* Detailansicht Tabelle */
+  .detail-wrap{background:#fff;border-radius:12px;box-shadow:var(--shadow);overflow:auto;max-height:calc(100vh - 260px);}
+  table.detail-table{width:100%;border-collapse:collapse;font-size:0.87rem;}
+  table.detail-table thead th{position:sticky;top:0;background:#eef1f8;z-index:3;text-align:left;padding:10px 12px;font-size:0.78rem;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);cursor:pointer;border-bottom:2px solid var(--border);white-space:nowrap;}
+  table.detail-table thead th:hover{background:#e2e6f2;}
+  table.detail-table thead th.sorted{color:var(--accent);}
+  table.detail-table tbody tr.verlag-row{cursor:pointer;border-bottom:1px solid var(--border);}
+  table.detail-table tbody tr.verlag-row:nth-child(4n+1){background:#fbfcfe;}
+  table.detail-table tbody tr.verlag-row:hover{background:#eef2ff;}
+  table.detail-table td{padding:9px 12px;vertical-align:middle;}
+  .expand-arrow{display:inline-block;transition:transform .15s;margin-right:6px;color:var(--muted);}
+  .expand-arrow.open{transform:rotate(90deg);}
+  .status-badge{display:inline-block;padding:3px 10px;border-radius:12px;font-size:0.72rem;font-weight:700;color:#fff;}
+  .status-pipeline{background:var(--grey);}
+  .status-austausch{background:var(--accent);}
+  .status-test{background:var(--yellow);color:#4a3200;}
+  .status-automatisiert{background:var(--green);}
+  tr.detail-expand-row{background:#f7f8fc;}
+  tr.detail-expand-row td{padding:0 12px 14px 32px;}
+  .detail-website-block{background:#fff;border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-top:10px;}
+  .detail-website-title{font-weight:700;margin-bottom:6px;font-size:0.85rem;}
+  .detail-kanal-badges{display:flex;flex-wrap:wrap;gap:6px;}
+  .kanal-badge{background:#eef1f8;border:1px solid var(--border);border-radius:14px;padding:3px 10px;font-size:0.75rem;color:var(--text);}
+  .kanal-badge b{color:var(--accent-dark);}
 
   /* Modal */
   .modal-overlay{position:fixed;inset:0;background:rgba(15,20,35,0.55);display:flex;align-items:center;justify-content:center;z-index:200;padding:20px;}
@@ -161,6 +192,7 @@
   <div class="tabs">
     <button class="tab-btn active" data-tab="kanban">Kanban-Board</button>
     <button class="tab-btn" data-tab="reminder">🔔 Reminder</button>
+    <button class="tab-btn" data-tab="detail">📊 Detailansicht</button>
   </div>
 </header>
 
@@ -191,23 +223,28 @@
   <section id="kanbanView" class="board">
     <div class="board-column" data-status="pipeline">
       <div class="column-header"><span>📋 Pipeline</span><span class="column-count" data-status="pipeline">0</span></div>
+      <div class="column-sort"><select class="col-sort-select" data-status="pipeline"></select></div>
       <div class="card-list" data-status="pipeline"></div>
     </div>
     <div class="board-column" data-status="austausch">
       <div class="column-header"><span>🔄 Austausch</span><span class="column-count" data-status="austausch">0</span></div>
+      <div class="column-sort"><select class="col-sort-select" data-status="austausch"></select></div>
       <div class="card-list" data-status="austausch"></div>
     </div>
     <div class="board-column" data-status="test">
       <div class="column-header"><span>🧪 Test</span><span class="column-count" data-status="test">0</span></div>
+      <div class="column-sort"><select class="col-sort-select" data-status="test"></select></div>
       <div class="card-list" data-status="test"></div>
     </div>
     <div class="board-column" data-status="automatisiert">
       <div class="column-header"><span>✅ Automatisiert</span><span class="column-count" data-status="automatisiert">0</span></div>
+      <div class="column-sort"><select class="col-sort-select" data-status="automatisiert"></select></div>
       <div class="card-list" data-status="automatisiert"></div>
     </div>
   </section>
 
   <section id="reminderView" class="reminder-view hidden"></section>
+  <section id="detailView" class="hidden"></section>
 </main>
 
 <div id="modalOverlay" class="modal-overlay hidden"></div>
@@ -245,7 +282,10 @@
     filter: {search:"", status:"all", prioritaet:"all"},
     selectedId: null,
     currentTab: "kanban",
-    draggingId: null
+    draggingId: null,
+    columnSort: {pipeline:"wichtigkeit-desc", austausch:"wichtigkeit-desc", test:"wichtigkeit-desc", automatisiert:"wichtigkeit-desc"},
+    detailSort: {key:"name", dir:"asc"},
+    detailExpanded: {}
   };
 
   /* ================= Helpers ================= */
@@ -317,98 +357,77 @@
     return worst || {level:"grey", workdays:null, text:"Kein Datum"};
   }
 
-  /* ================= Demo-Daten ================= */
-  function makeKanal(typ, format, link){
-    return {typ: typ, format: format, beispielLink: link};
-  }
+  /* ================= Sortier-Helfer ================= */
+  var SORT_OPTIONS = [
+    {value:"prio-desc", label:"Priorität (Hoch → Niedrig)"},
+    {value:"prio-asc", label:"Priorität (Niedrig → Hoch)"},
+    {value:"name-asc", label:"Name (A-Z)"},
+    {value:"name-desc", label:"Name (Z-A)"},
+    {value:"wichtigkeit-desc", label:"Wichtigkeit % (absteigend)"},
+    {value:"wichtigkeit-asc", label:"Wichtigkeit % (aufsteigend)"},
+    {value:"kontakt-asc", label:"Letzter Kontakt (älteste zuerst)"},
+    {value:"kontakt-desc", label:"Letzter Kontakt (neueste zuerst)"},
+    {value:"websites-desc", label:"Anzahl Websites (absteigend)"},
+    {value:"websites-asc", label:"Anzahl Websites (aufsteigend)"}
+  ];
+  var PRIO_RANK = {hoch:3, mittel:2, niedrig:1};
 
-  function buildDemoData(){
-    var defs = [
-      {name:"Süddeutscher Medienverlag", kv:"Petra Hoffmann", zi:"Julia Berger", prio:"hoch", status:"pipeline", tage:1,
-        sites:[{name:"sueddeutscher-medien.de", kanaele:["Mailing","Display"]}],
-        todos:[{id:uid("t"), text:"Testdatei anfordern", faellig: daysAgoISO(-2), erledigt:false}]},
-      {name:"Rheinische Post Gruppe", kv:"Michael Krüger", zi:"Tobias Wolf", prio:"mittel", status:"pipeline", tage:4,
-        sites:[{name:"rp-gruppe.de", kanaele:["Display","Social"]}]},
-      {name:"Nordkurier Verlagsgruppe", kv:"Anke Reimann", zi:"Julia Berger", prio:"niedrig", status:"pipeline", tage:0,
-        sites:[{name:"nordkurier-vg.de", kanaele:["Mailing"]}]},
-      {name:"Bayerischer Anzeiger", kv:"Stefan Huber", zi:"Nina Fischer", prio:"mittel", status:"pipeline", tage:6,
-        sites:[{name:"bayerischer-anzeiger.de", kanaele:["Kombi"]}]},
-      {name:"Schleswig-Holstein Medienhaus", kv:"Lars Petersen", zi:"Tobias Wolf", prio:"hoch", status:"pipeline", tage:9,
-        sites:[{name:"sh-medienhaus.de", kanaele:["Mailing","Display","Social"]}]},
-      {name:"Hamburger Wochenschau", kv:"Claudia Nowak", zi:"Julia Berger", prio:"hoch", status:"austausch", tage:2,
-        websitesUnabhaengig:true,
-        sites:[
-          {name:"hamburger-wochenschau.de", kanaele:["Mailing","Display"], tage:2},
-          {name:"hw-regional.de", kanaele:["Social"], tage:6}
-        ]},
-      {name:"Westfälische Rundschau", kv:"Jürgen Wagner", zi:"Nina Fischer", prio:"mittel", status:"austausch", tage:1,
-        sites:[{name:"westfaelische-rundschau.de", kanaele:["Display"]}]},
-      {name:"Sächsische Zeitungsgruppe", kv:"Kathrin Lehmann", zi:"Tobias Wolf", prio:"hoch", status:"austausch", tage:5,
-        sites:[{name:"saechsische-zg.de", kanaele:["Mailing","Kombi"]}],
-        todos:[{id:uid("t"), text:"Rückmeldung Formatwahl einholen", faellig: daysAgoISO(1), erledigt:false}]},
-      {name:"Thüringer Allgemeine Medien", kv:"Robert Schulz", zi:"Julia Berger", prio:"niedrig", status:"austausch", tage:3,
-        sites:[{name:"thueringer-allg-medien.de", kanaele:["Social"]}]},
-      {name:"Pfälzischer Merkur Verlag", kv:"Sabine Klein", zi:"Nina Fischer", prio:"mittel", status:"austausch", tage:0,
-        sites:[{name:"pfaelzischer-merkur.de", kanaele:["Mailing","Display"]}]},
-      {name:"Berliner Tagesspiegel Verlag", kv:"Thomas Becker", zi:"Tobias Wolf", prio:"hoch", status:"test", tage:1,
-        sites:[{name:"tagesspiegel-verlag.de", kanaele:["Mailing","Display","Kombi"]}],
-        todos:[{id:uid("t"), text:"Testlauf validieren", faellig: daysAgoISO(0), erledigt:false}]},
-      {name:"Frankfurter Verlagshaus", kv:"Melanie Voigt", zi:"Julia Berger", prio:"mittel", status:"test", tage:2,
-        sites:[{name:"frankfurter-verlagshaus.de", kanaele:["Display"]}]},
-      {name:"Kölner Stadtmedien", kv:"Andreas Zimmer", zi:"Nina Fischer", prio:"mittel", status:"test", tage:7,
-        websitesUnabhaengig:true,
-        sites:[
-          {name:"koelner-stadtmedien.de", kanaele:["Mailing"], tage:1},
-          {name:"ks-magazin.de", kanaele:["Social","Display"], tage:9}
-        ]},
-      {name:"Stuttgarter Pressehaus", kv:"Verena Graf", zi:"Tobias Wolf", prio:"niedrig", status:"test", tage:0,
-        sites:[{name:"stuttgarter-pressehaus.de", kanaele:["Kombi"]}]},
-      {name:"Hessische Verlagsgesellschaft", kv:"Frank Ludwig", zi:"Julia Berger", prio:"hoch", status:"automatisiert", tage:1,
-        notizen:"Automatisierung läuft stabil seit Q2. Monatliches Kurzcheck reicht aus.",
-        sites:[{name:"hessische-vg.de", kanaele:["Mailing","Display","Social","Kombi"]}],
-        todos:[{id:uid("t"), text:"Quartalscheck durchführen", faellig: daysAgoISO(-14), erledigt:false}]},
-      {name:"Niedersächsischer Mediendienst", kv:"Christine Roth", zi:"Nina Fischer", prio:"mittel", status:"automatisiert", tage:2,
-        sites:[{name:"nds-mediendienst.de", kanaele:["Mailing","Display"]}]},
-      {name:"Saarländischer Verlag", kv:"Oliver Franke", zi:"Tobias Wolf", prio:"niedrig", status:"automatisiert", tage:3,
-        sites:[{name:"saarlaendischer-verlag.de", kanaele:["Display"]}]},
-      {name:"Brandenburger Zeitungsverlag", kv:"Susanne Albrecht", zi:"Julia Berger", prio:"mittel", status:"automatisiert", tage:0,
-        sites:[{name:"brandenburger-zv.de", kanaele:["Mailing","Kombi"]}]}
-    ];
-
-    var result = {};
-    defs.forEach(function(def){
-      var verlagId = uid("v");
-      var websites = {};
-      def.sites.forEach(function(s){
-        var wid = uid("w");
-        var kanaele = {};
-        s.kanaele.forEach(function(typ, ki){
-          var kid = uid("k");
-          var format = (ki % 2 === 0) ? "XLS" : "CSV";
-          var ext = (format === "XLS") ? "xlsx" : "csv";
-          var slug = def.name.toLowerCase().replace(/[^a-z0-9]+/g,"-");
-          kanaele[kid] = makeKanal(typ, format, "https://beispiel-reporting.de/" + slug + "/" + typ.toLowerCase() + "." + ext);
-        });
-        websites[wid] = {
-          name: s.name,
-          letzterKontakt: daysAgoISO(s.tage !== undefined ? s.tage : def.tage),
-          kanaele: kanaele
-        };
-      });
-      result[verlagId] = {
-        name: def.name,
-        kontaktVerlag: def.kv,
-        zustaendigIntern: def.zi,
-        prioritaet: def.prio,
-        status: def.status,
-        letzterKontakt: daysAgoISO(def.tage),
-        websitesUnabhaengig: !!def.websitesUnabhaengig,
-        notizen: def.notizen || "",
-        todos: def.todos || [],
-        websites: websites
-      };
+  function getOldestContactDate(v){
+    var contacts = getEffectiveContacts(v);
+    var oldest = null;
+    contacts.forEach(function(c){
+      if(!c.date) { oldest = oldest || "9999-99-99"; return; }
+      if(oldest === null || c.date < oldest) oldest = c.date;
     });
-    return result;
+    return oldest;
+  }
+  function websiteCount(v){
+    return v.websites ? Object.keys(v.websites).length : 0;
+  }
+  function sortVerlagIds(ids, sortKey){
+    var arr = ids.slice();
+    function val(id){ return state.verlage[id]; }
+    switch(sortKey){
+      case "prio-desc":
+        arr.sort(function(a,b){ return (PRIO_RANK[val(b).prioritaet]||0) - (PRIO_RANK[val(a).prioritaet]||0); });
+        break;
+      case "prio-asc":
+        arr.sort(function(a,b){ return (PRIO_RANK[val(a).prioritaet]||0) - (PRIO_RANK[val(b).prioritaet]||0); });
+        break;
+      case "name-asc":
+        arr.sort(function(a,b){ return (val(a).name||"").localeCompare(val(b).name||""); });
+        break;
+      case "name-desc":
+        arr.sort(function(a,b){ return (val(b).name||"").localeCompare(val(a).name||""); });
+        break;
+      case "wichtigkeit-desc":
+        arr.sort(function(a,b){ return (numOrNeg(val(b).wichtigkeitProzent)) - (numOrNeg(val(a).wichtigkeitProzent)); });
+        break;
+      case "wichtigkeit-asc":
+        arr.sort(function(a,b){ return (numOrPos(val(a).wichtigkeitProzent)) - (numOrPos(val(b).wichtigkeitProzent)); });
+        break;
+      case "kontakt-asc":
+        arr.sort(function(a,b){ return (getOldestContactDate(val(a))||"9999-99-99").localeCompare(getOldestContactDate(val(b))||"9999-99-99"); });
+        break;
+      case "kontakt-desc":
+        arr.sort(function(a,b){ return (getOldestContactDate(val(b))||"0000-00-00").localeCompare(getOldestContactDate(val(a))||"0000-00-00"); });
+        break;
+      case "websites-desc":
+        arr.sort(function(a,b){ return websiteCount(val(b)) - websiteCount(val(a)); });
+        break;
+      case "websites-asc":
+        arr.sort(function(a,b){ return websiteCount(val(a)) - websiteCount(val(b)); });
+        break;
+      default: break;
+    }
+    return arr;
+  }
+  function numOrNeg(n){ return (n === undefined || n === null || n === "") ? -1 : Number(n); }
+  function numOrPos(n){ return (n === undefined || n === null || n === "") ? 999999 : Number(n); }
+  function sortOptionsHtml(selected){
+    return SORT_OPTIONS.map(function(o){
+      return '<option value="' + o.value + '" ' + (o.value === selected ? "selected" : "") + '>' + o.label + '</option>';
+    }).join("");
   }
 
   /* ================= Firebase Anbindung ================= */
@@ -421,12 +440,137 @@
     else text.textContent = "Offline (lokaler Modus)";
   }
 
-  function fallbackLocal(){
-    if(Object.keys(state.verlage).length === 0){
-      state.verlage = buildDemoData();
+  /* ================= Seed-Daten: 80 Verlage aus der Wichtigkeits-Rangliste ================= */
+  var SEED_RAW = [
+    ["MedTriX GmbH Wiesbaden",13.44,1,[["diabetologie-online.de",["Display"]],["medical-tribune.de",["Corporate Publishing","Exklusiv Mailing","Kombi-Schaltung","Newsletter","Podcast"]],["recall-magazin.de",["Newsletter"]]]],
+    ["Deutscher Ärzteverlag GmbH",8.34,2,[["aerzteblatt.de",["Display","Exklusiv Mailing","Kombi-Schaltung","Newsletter","Programmatic Flight"]]]],
+    ["mgo fachverlage GmbH & Co. KG",8.27,3,[["aerztliches-journal.de",["Exklusiv Mailing"]],["allgemeinarzt.digital",["Display","Exklusiv Mailing","Newsletter"]],["concept-ophthalmologie.de",["Display","Exklusiv Mailing","Newsletter"]],["dermaaktuell.de",["Exklusiv Mailing","Newsletter"]],["diabetes-heute.info",["Exklusiv Mailing","Newsletter"]],["gyne-fachzeitschrift.de",["Display","Exklusiv Mailing","Newsletter"]],["herzmedizin.info",["Exklusiv Mailing","Newsletter"]],["homoeopathie-zeitschrift.de",["Exklusiv Mailing","Newsletter"]],["ku-gesundheitsmanagement.de",["Newsletter"]],["mgo-dental.de",["Newsletter"]],["naturheilkunde-kompakt.de",["Display","Exklusiv Mailing","Newsletter"]],["neuroaktuell.de",["Display","Exklusiv Mailing","Newsletter"]],["onkologie-heute.info",["Exklusiv Mailing","Newsletter"]],["paediatrische-praxis.info",["Exklusiv Mailing","Newsletter"]],["uroforum.de",["Exklusiv Mailing","Newsletter"]]]],
+    ["MEDCON HEALTH CONTENTS GmbH",7.45,4,[["biermann-medizin.de",["Display","Exklusiv Mailing","Newsletter"]]]],
+    ["esanum GmbH",6.59,5,[["esanum.de",["Display","Exklusiv Mailing","Microsite","Newsletter","Umfrage","Webinar"]]]],
+    ["DocCheck Community GmbH",6.26,6,[["doccheck.com",["Corporate Publishing","Display","Exklusiv Mailing","Kombi-Schaltung","Newsletter","Umfrage","Video Flight"]]]],
+    ["Vidal MMI Germany",6.07,7,[["gelbe-liste.de",["Display","Exklusiv Mailing","Newsletter"]]]],
+    ["Aend AG",5.18,8,[["aend.de",["Display","Exklusiv Mailing","Newsletter"]]]],
+    ["MedTriX GmbH RS MEDIA",4.97,9,[["Journalhaema.de",["Display","Exklusiv Mailing","Newsletter"]],["Journalmed.de",["Display","Exklusiv Mailing","Newsletter"]],["Journalonko.de",["Display","Exklusiv Mailing","Kombi-Schaltung","Newsletter"]]]],
+    ["Springer Medizin Verlag GmbH",4.33,10,[["aerztezeitung.de",["Display","Exklusiv Mailing","Newsletter"]],["instagram.com/das_pta_magazin",["Social Media"]],["springermedizin.de",["Corporate Publishing","Display","Newsletter"]],["springerpflege.de",["Newsletter"]]]],
+    ["Deutscher Apotheker Verlag GmbH",4.14,11,[["das-pta-magazin.de",["Display","Kombi-Schaltung","Newsletter","Social Media"]],["DAV Netzwerk",["Display"]],["deutsche-apotheker-zeitung.de",["Corporate Publishing","Display","Exklusiv Mailing","Kombi-Schaltung","Mobile","Newsletter","Social Media","Webinar"]],["Deutscher Apotheker Verlag DE - DAZ.online & PTAheute.de",["Display","Kombi-Schaltung","Microsite"]],["facebook.de/daz.online",["Social Media"]],["facebook.de/ptaheute",["Social Media"]],["hcm-magazin.de",["Newsletter"]],["instagram.com/ptaheute",["Social Media"]],["krankenhauspharmazie.de",["Newsletter"]],["ptaheute.de",["Display","Exklusiv Mailing","Kombi-Schaltung","Mobile","Newsletter","Social Media"]],["ptaheute.de Mobile",["Mobile"]]]],
+    ["Avoxa – Mediengruppe Deutscher Apotheker GmbH",2.90,12,[["aponet.de",["Display"]],["pharmazeutische-zeitung.de",["Display","Kombi-Schaltung","Microsite","Mobile","Newsletter","Social Media"]],["ptaforum.pharmazeutische-zeitung.de",["Display","Kombi-Schaltung","Mobile","Newsletter","Social Media"]]]],
+    ["MedTriX GmbH ARZT&WIRTSCHAFT",2.76,13,[["arzt-wirtschaft.de",["Display","Exklusiv Mailing","Microsite","Newsletter"]],["dental-wirtschaft.de",["Newsletter"]],["zm-online.de",["Exklusiv Mailing","Newsletter"]]]],
+    ["Pharmedia GmbH",2.37,14,[["kma-online.de",["Exklusiv Mailing","Newsletter"]],["Thieme Audience Sharing",["Social Media"]],["Thieme Spotlight Multichannel",["Corporate Publishing"]],["Thieme.de",["Display","Exklusiv Mailing","Kombi-Schaltung","Newsletter"]]]],
+    ["dr-ouwerkerk ag",2.09,15,[["med-congress.ch",["Exklusiv Mailing","Kombi-Schaltung"]],["med-congress.info (EUR)",["Display","Exklusiv Mailing","Kombi-Schaltung"]]]],
+    ["EL PATO Medien GmbH",1.44,16,[["apotheke-adhoc.de",["Microsite","Newsletter","Social Media"]],["pta-in-love.de",["Display","Exklusiv Mailing","Kombi-Schaltung","Microsite","Newsletter","Social Media","Umfrage","Video Flight"]]]],
+    ["B2B Media Group GmbH",1.35,17,[["B2B Media Group DE - Ärzte",["Display"]],["B2B Media Group DE - Apotheker",["Display"]],["B2B Media Group DE - Hebammen",["Display"]],["B2B Media Group DE - Heilpraktiker",["Display"]],["B2B Media Group DE - RoN",["Display"]]]],
+    ["Meneiti GmbH",1.17,18,[["Orange Salamander App",["Corporate Publishing","Display","Mobile"]]]],
+    ["mm medizin + medien Verlag GmbH",1.09,19,[["hausaerztlichepraxis.digital",["Display","Exklusiv Mailing","Newsletter"]]]],
+    ["HCP Publishing Group GmbH",1.07,20,[["gyn-depesche.de",["Display","Exklusiv Mailing","Newsletter"]],["naturmed-praxis.de",["Newsletter"]],["naturpharmazie.com",["Newsletter"]],["neuro-depesche.de",["Exklusiv Mailing","Newsletter"]],["onko.news",["Display","Newsletter"]],["praxis-depesche.de",["Exklusiv Mailing","Newsletter"]]]],
+    ["coliquio GmbH",0.54,21,[["coliquio DE - Coliquio + Medscape + Univadis",["Newsletter"]],["coliquio.de",["Display","Exklusiv Mailing"]],["Extend",["Display"]]]],
+    ["Gesellschaft für Medizinische und Pharmazeutische Fortbildung mbH",0.51,22,[["pta-channel.de",["Display","Exklusiv Mailing","Kombi-Schaltung","Newsletter","Social Media"]]]],
+    ["PRIME PUBLIC MEDIA AG",0.51,23,[["medizinonline.ch",["Display","Exklusiv Mailing","Newsletter"]]]],
+    ["Medicom Verlags GmbH",0.50,24,[["Medicom.cc",["Display","Exklusiv Mailing","Newsletter"]]]],
+    ["West 78 Group Ltd (G-Med)",0.45,25,[["G-Med",["Display"]]]],
+    ["EYEFOX UG (haftungsbeschränkt)",0.43,26,[["eyefox.com",["Display","Exklusiv Mailing","Kombi-Schaltung","Newsletter"]]]],
+    ["DAP Networks GmbH",0.38,27,[["deutschesapothekenportal.de",["Exklusiv Mailing","Kombi-Schaltung","Microsite","Newsletter"]]]],
+    ["MedTriX AG Basel",0.35,28,[["medical-tribune.ch",["Exklusiv Mailing","Newsletter"]],["medonline.at",["Exklusiv Mailing"]]]],
+    ["MedienCompany GmbH",0.33,29,[["mfa-heute.de",["Display","Newsletter"]],["neuromedizin.de",["Display"]]]],
+    ["WPV. Wirtschafts- und Praxisverlag GmbH",0.30,30,[["der-niedergelassene-arzt.de",["Display","Newsletter"]]]],
+    ["mhp-Verlag GmbH",0.28,31,[["mhp Verlag - Newsletter",["Exklusiv Mailing","Newsletter"]],["mhp Verlag DE - Wundmanagement Newsletter",["Newsletter"]]]],
+    ["pro anima medizin medien OHG",0.28,32,[["urologen-infoportal.de",["Exklusiv Mailing","Newsletter"]]]],
+    ["Trillium GmbH",0.26,33,[["trillium.de",["Exklusiv Mailing","Newsletter"]]]],
+    ["Umschau Zeitschriftenverlag GmbH",0.25,34,[["diepta.de",["Display","Exklusiv Mailing","Kombi-Schaltung","Newsletter","Social Media"]]]],
+    ["Dental Tribune International GmbH",0.25,35,[["de.dental-tribune.com",["Newsletter"]]]],
+    ["SoD ScreenOnDemand GmbH",0.25,36,[["SoD Netzwerk",["Display"]]]],
+    ["Universimed Cross Media Content GmbH",0.23,37,[["universimed.com/at",["Newsletter"]],["universimed.com/ch",["Display","Exklusiv Mailing","Newsletter"]]]],
+    ["Dr. Jochen Reichel",0.22,38,[["hnoinfo.com",["Newsletter"]]]],
+    ["QuaTestio GmbH",0.19,39,[["hebammen-testen.de",["Display","Exklusiv Mailing","Kombi-Schaltung","Microsite","Newsletter","Podcast","Social Media"]]]],
+    ["DIRECT-TO-PATIENT MEDIA GmbH",0.19,40,[["DIRECT-TO-PATIENT",["Exklusiv Mailing"]],["DIRECT-TO-PATIENT DE - GYN-DIRECT",["Display","Exklusiv Mailing","Newsletter"]],["gyn-direct.de",["Exklusiv Mailing"]],["paed-direct.de",["Display","Exklusiv Mailing"]]]],
+    ["Bibliomed Medizinische Verlagsgesellschaft mbH",0.16,41,[["bibliomedmanager.de",["Display","Newsletter"]],["bibliomed-pflege.de",["Display","Exklusiv Mailing","Newsletter"]]]],
+    ["EMG GmbH & Co. KG",0.16,42,[["altmeyers.org/de",["Display","Newsletter"]]]],
+    ["Publimed Medizin und Medien GmbH",0.15,43,[["frauenarzt.de",["Newsletter"]]]],
+    ["Richard Pflaum Verlag GmbH & Co. KG",0.14,44,[["forum-logopaedie.de",["Display","Exklusiv Mailing","Newsletter"]],["naturheilpraxis.de",["Display","Exklusiv Mailing","Newsletter"]]]],
+    ["Affinity Global GmbH",0.13,45,[["Opinary DE - Netzwerk",["Display"]]]],
+    ["MWI GmbH",0.11,46,[["medwiss.de",["Exklusiv Mailing","Microsite","Newsletter"]]]],
+    ["Dr. Reinhard Kaden Verlag GmbH",0.10,47,[["kaden-verlag.de",["Exklusiv Mailing","Newsletter"]]]],
+    ["andmore-Media GmbH",0.09,48,[["hivandmore.de",["Display","Newsletter"]]]],
+    ["New Business Verlag GmbH & Co. KG",0.09,49,[["healthcaremarketing.eu",["Kombi-Schaltung","Newsletter"]]]],
+    ["Springer Medizin Österreich",0.07,50,[["springermedizin.at",["Display","Exklusiv Mailing","Newsletter"]],["springermedizin.ch",["Display"]]]],
+    ["VAV - Verlag Axel Viola",0.07,51,[["interventionlab.net",["Exklusiv Mailing","Newsletter"]]]],
+    ["Ausbildung.de GmbH",0.06,52,[["Ausbildung.de",["Display"]]]],
+    ["Keleya Digital-Health Solution",0.06,53,[["ammely.de",["Kombi-Schaltung","Newsletter"]]]],
+    ["VDBD AKADEMIE GmbH",0.06,54,[["vdbd-akademie.de",["Newsletter"]]]],
+    ["DGU-Akademie GmbH",0.05,55,[["uro-tube.de",["Display"]]]],
+    ["Digimed Verlag GmbH",0.04,56,[["krebsgesellschaft.de",["Newsletter"]]]],
+    ["Elwin Staude Verlag GmbH",0.03,57,[["dhz.de",["Newsletter"]]]],
+    ["nitschmahler&friends GmbH",0.03,58,[["ptadigital.de",["Social Media"]]]],
+    ["MiM Verlagsgesellschaft mbH",0.03,59,[["der-privatarzt.de",["Display","Kombi-Schaltung"]]]],
+    ["Wiley UK",0.03,60,[["wiley.com",["Display"]]]],
+    ["Oemus Media AG",0.03,61,[["zwp-online.info",["Exklusiv Mailing","Newsletter"]]]],
+    ["Deutscher Hebammenverband e.V.",0.03,62,[["hebammenforum.de",["Newsletter"]]]],
+    ["DOZ-Verlag Optische Fachveröffentlichung GmbH",0.03,63,[["doz-verlag.de",["Display","Exklusiv Mailing","Newsletter"]]]],
+    ["MEDahead Gesellschaft für medizinische Information m.b.H.",0.03,64,[["medmedia.at (medahead)",["Newsletter"]]]],
+    ["Galledia Fachmedien AG",0.02,65,[["schweizeroptiker.ch",["Display","Newsletter"]]]],
+    ["Medmedia.at",0.02,66,[["medmedia.at",["Newsletter"]]]],
+    ["Alfons W. Gentner Verlag GmbH",0.02,67,[["asu-arbeitsmedizin.com",["Exklusiv Mailing","Newsletter"]]]],
+    ["Gloobi.de GmbH & Co. KG",0.02,68,[["carevor9.de",["Newsletter"]]]],
+    ["Redaktion kkdirekt",0.02,69,[["krankenkassen-direkt.de",["Display","Newsletter"]]]],
+    ["partnerauge GmbH",0.02,70,[["eyebizz.de",["Display","Exklusiv Mailing","Newsletter"]]]],
+    ["Veterinär Verlags GmbH",0.02,71,[["vetimpulse.de",["Newsletter"]]]],
+    ["MedLearning AG",0.02,72,[["cme.medlearning.de",["Webinar"]]]],
+    ["Spitta Verlag GmbH & Co. KG",0.02,73,[["dentalwelt.spitta.de",["Newsletter"]]]],
+    ["WILEY-VCH Verlag GmbH",0.02,74,[["management-krankenhaus.de",["Newsletter"]]]],
+    ["DGS mbH",0.01,75,[["dgschmerzmedizin.de",["Newsletter"]]]],
+    ["Eyepress Fachmedien GmbH",0.01,76,[["euro-focus.de",["Display","Exklusiv Mailing","Newsletter"]]]],
+    ["MT Verlag",0.01,77,[["medizin-telegramm.com",["Kombi-Schaltung","Newsletter"]]]],
+    ["Quintessenz Verlags-GmbH",0.01,78,[["quintessence-news.com",["Exklusiv Mailing","Newsletter"]]]],
+    ["optikum GmbH",0.00,79,[["optikum.at",["Display"]]]],
+    ["W. Kohlhammer GmbH",0.00,80,[["daskrankenhaus.de",["Newsletter"]]]]
+  ];
+
+  function buildSeedVerlage(){
+    var out = {};
+    SEED_RAW.forEach(function(entry){
+      var name = entry[0], wichtigkeit = entry[1], ranking = entry[2], sites = entry[3];
+      var vid = uid("v");
+      var websites = {};
+      sites.forEach(function(siteEntry){
+        var siteName = siteEntry[0], kanaele = siteEntry[1];
+        var wid = uid("w");
+        var kanaeleObj = {};
+        kanaele.forEach(function(typ){
+          var kid = uid("k");
+          kanaeleObj[kid] = {typ: typ, format: "", beispielLink: ""};
+        });
+        websites[wid] = {name: siteName, letzterKontakt: "", kanaele: kanaeleObj};
+      });
+      out[vid] = {
+        name: name,
+        kontaktVerlag: "",
+        zustaendigIntern: "",
+        prioritaet: "mittel",
+        status: "pipeline",
+        letzterKontakt: "",
+        websitesUnabhaengig: false,
+        notizen: "",
+        todos: [],
+        websites: websites,
+        wichtigkeitProzent: wichtigkeit,
+        ranking: ranking
+      };
+    });
+    return out;
+  }
+
+  function seedIfEmpty(){
+    if(usingFirebase && dbRef){
+      var seed = buildSeedVerlage();
+      var updates = {};
+      Object.keys(seed).forEach(function(id){ updates[id] = seed[id]; });
+      dbRef.update(updates).catch(function(err){ console.error("Seed-Import fehlgeschlagen:", err); });
+    } else {
+      state.verlage = buildSeedVerlage();
       renderApp();
     }
   }
+
+  function fallbackLocal(){
 
   function initFirebase(){
     if(typeof firebase === "undefined"){
@@ -447,11 +591,10 @@
       });
 
       dbRef.once("value").then(function(snap){
-        if(!snap.exists()){
-          var demo = buildDemoData();
-          dbRef.set(demo);
+        var data = snap.val();
+        if(!data || Object.keys(data).length === 0){
+          seedIfEmpty();
         }
-      }).catch(function(err){
         console.error("Firebase Lesefehler:", err);
         setSyncStatus("offline");
         fallbackLocal();
@@ -504,13 +647,18 @@
       if(ampel.level === "red") overdueCount++;
     });
     var pct = Math.min(Math.round((counts.automatisiert / TARGET_TOTAL) * 100), 100);
+    var automatisiertPct = total > 0 ? Math.round((counts.automatisiert / total) * 100) : 0;
     el.innerHTML =
       '<div class="kpi-tile">' +
         '<div class="kpi-value">' + counts.automatisiert + ' / ' + TARGET_TOTAL + '</div>' +
-        '<div class="kpi-label">Verlage automatisiert</div>' +
+        '<div class="kpi-label">Verlage automatisiert (Ziel)</div>' +
         '<div class="progress-bar-outer"><div class="progress-bar-inner" style="width:' + pct + '%"></div></div>' +
       '</div>' +
-      '<div class="kpi-tile"><div class="kpi-value">' + total + '</div><div class="kpi-label">Verlage erfasst gesamt</div></div>' +
+      '<div class="kpi-tile kpi-accent">' +
+        '<div class="kpi-value">' + counts.automatisiert + '</div>' +
+        '<div class="kpi-label">Automatisiert (' + automatisiertPct + '% von gesamt)</div>' +
+      '</div>' +
+      '<div class="kpi-tile"><div class="kpi-value">' + total + '</div><div class="kpi-label">Aktuell erfasst</div></div>' +
       '<div class="kpi-tile"><div class="kpi-value">' + counts.pipeline + '</div><div class="kpi-label">in Pipeline</div></div>' +
       '<div class="kpi-tile"><div class="kpi-value">' + counts.austausch + '</div><div class="kpi-label">im Austausch</div></div>' +
       '<div class="kpi-tile"><div class="kpi-value">' + counts.test + '</div><div class="kpi-label">im Test</div></div>' +
@@ -563,6 +711,13 @@
   function renderBoard(){
     var statuses = ["pipeline","austausch","test","automatisiert"];
     statuses.forEach(function(st){
+      var sortSelect = document.querySelector('.col-sort-select[data-status="' + st + '"]');
+      if(sortSelect && sortSelect.dataset.built !== "1"){
+        sortSelect.innerHTML = sortOptionsHtml(state.columnSort[st]);
+        sortSelect.dataset.built = "1";
+      } else if(sortSelect){
+        sortSelect.value = state.columnSort[st];
+      }
       var listEl = document.querySelector('.card-list[data-status="' + st + '"]');
       var countEl = document.querySelector('.column-count[data-status="' + st + '"]');
       if(!listEl) return;
@@ -570,9 +725,10 @@
         var v = state.verlage[id];
         return v.status === st && passesFilter(v);
       });
+      entries = sortVerlagIds(entries, state.columnSort[st]);
       if(countEl) countEl.textContent = entries.length;
       if(entries.length === 0){
-        listEl.innerHTML = '<p class="empty-hint">Keine Verlage in dieser Spalte.</p>';
+        listEl.innerHTML = '<p class="empty-hint">' + (Object.keys(state.verlage).length === 0 ? 'Noch keine Verlage erfasst - lege den ersten Verlag an.' : 'Keine Verlage in dieser Spalte.') + '</p>';
         return;
       }
       listEl.innerHTML = entries.map(function(id){ return renderCard(id, state.verlage[id]); }).join("");
@@ -831,6 +987,50 @@
       '<div class="reminder-section"><h2>🟡 Bald fällig (2 Werktage seit Kontakt)</h2>' + soonHtml + '</div>' +
       '<div class="reminder-section"><h2>📝 Offene Todos</h2>' + todosHtml + '</div>';
   }
+
+  /* ================= Render: Detailansicht ================= */
+  var DETAIL_COLUMNS = [
+    {key:"name", label:"Verlag"},
+    {key:"prioritaet", label:"Priorität"},
+    {key:"wichtigkeitProzent", label:"Wichtigkeit %"},
+    {key:"status", label:"Status"},
+    {key:"kontaktVerlag", label:"Kontaktperson"},
+    {key:"websites", label:"Websites"},
+    {key:"letzterKontakt", label:"Letzter Kontakt"}
+  ];
+
+  function detailSortIds(ids){
+    var key = state.detailSort.key;
+    var dir = state.detailSort.dir === "asc" ? 1 : -1;
+    var arr = ids.slice();
+    function v(id){ return state.verlage[id]; }
+    arr.sort(function(a,b){
+      var A, B;
+      switch(key){
+        case "prioritaet": A = PRIO_RANK[v(a).prioritaet]||0; B = PRIO_RANK[v(b).prioritaet]||0; break;
+        case "wichtigkeitProzent": A = numOrNeg(v(a).wichtigkeitProzent); B = numOrNeg(v(b).wichtigkeitProzent); break;
+        case "status": A = v(a).status||""; B = v(b).status||""; break;
+        case "kontaktVerlag": A = (v(a).kontaktVerlag||"").toLowerCase(); B = (v(b).kontaktVerlag||"").toLowerCase(); break;
+        case "websites": A = websiteCount(v(a)); B = websiteCount(v(b)); break;
+        case "letzterKontakt": A = getOldestContactDate(v(a))||""; B = getOldestContactDate(v(b))||""; break;
+        default: A = (v(a).name||"").toLowerCase(); B = (v(b).name||"").toLowerCase();
+      }
+      if(A < B) return -1*dir;
+      if(A > B) return 1*dir;
+      return 0;
+    });
+    return arr;
+  }
+
+  function renderDetailWebsiteBlock(w){
+    var kanaeleHtml = Object.keys(w.kanaele || {}).map(function(kid){
+      var k = w.kanaele[kid];
+      return '<span class="kanal-badge"><b>' + esc(k.typ) + '</b> · ' + esc(k.format) + '</span>';
+    }).join("");
+    if(!kanaeleHtml) kanaeleHtml = '<span class="kanal-badge">Keine Kanäle</span>';
+    return '' +
+      '<div class="detail-website-block">' +
+        '<div class="detail-website-title">🌐 ' + esc(w.name) + (w.letzterKontakt ? ' <span style="color:var(--muted);font-weight:400;font-size:0.78rem;">· letzter Kontakt: ' + formatDate(w.letzterKontakt) + '</span>' : '') + '</div>' +
 
   /* ================= Master render ================= */
   function renderApp(){
