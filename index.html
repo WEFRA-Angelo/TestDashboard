@@ -3,1324 +3,1103 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Verlags-Reporting Standardisierung – Dashboard</title>
+<title>Verlags-Standardisierung Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/firebase@10.12.2/firebase-app-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/firebase@10.12.2/firebase-database-compat.js"></script>
 <style>
   :root{
-    --blue:#2563eb;
-    --blue-dark:#1d4ed8;
-    --blue-light:#eff6ff;
-    --gray-50:#f8fafc;
-    --gray-100:#f1f5f9;
-    --gray-200:#e2e8f0;
-    --gray-300:#cbd5e1;
-    --gray-500:#64748b;
-    --gray-700:#334155;
-    --gray-900:#0f172a;
-    --green:#16a34a;
-    --amber:#d97706;
-    --red:#dc2626;
+    --bg:#f2f4f8;
+    --card-bg:#ffffff;
+    --text:#1f2733;
+    --muted:#6b7688;
+    --border:#e1e5eb;
+    --accent:#3a5ded;
+    --accent-dark:#2c46c4;
+    --red:#e74c3c;
+    --yellow:#f2a93b;
+    --green:#27ae60;
+    --grey:#9aa4b2;
     --radius:12px;
-    --shadow:0 1px 3px rgba(15,23,42,.08), 0 1px 2px rgba(15,23,42,.04);
-    --shadow-md:0 4px 12px rgba(15,23,42,.12);
+    --shadow:0 2px 8px rgba(20,30,60,0.08);
+    --shadow-hover:0 6px 18px rgba(20,30,60,0.16);
   }
   *{box-sizing:border-box;}
-  body{
-    margin:0;
-    font-family:'Segoe UI', Roboto, -apple-system, Arial, sans-serif;
-    background:var(--gray-50);
-    color:var(--gray-900);
+  body{margin:0;font-family:"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--text);}
+  .hidden{display:none !important;}
+  header.topbar{
+    position:sticky;top:0;z-index:50;background:linear-gradient(135deg,#1f2b52,#2c46c4);
+    color:#fff;padding:14px 20px 0 20px;box-shadow:0 3px 10px rgba(0,0,0,0.15);
   }
-  header.top{
-    background:linear-gradient(135deg,var(--blue-dark),var(--blue));
-    color:#fff;
-    padding:20px 24px 16px;
+  .topbar-row1{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;}
+  .topbar-row1 h1{font-size:1.25rem;margin:0 0 8px 0;font-weight:600;}
+  .sync-indicator{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.12);padding:6px 12px;border-radius:20px;font-size:0.85rem;margin-bottom:8px;}
+  .sync-dot{width:10px;height:10px;border-radius:50%;background:var(--grey);flex-shrink:0;}
+  .sync-dot.connected{background:var(--green);}
+  .sync-dot.connecting{background:var(--yellow);animation:pulse 1s infinite;}
+  .sync-dot.offline{background:var(--red);}
+  @keyframes pulse{0%{opacity:1;}50%{opacity:0.3;}100%{opacity:1;}}
+  .kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:10px 0 12px 0;}
+  .kpi-tile{background:rgba(255,255,255,0.1);border-radius:10px;padding:10px 12px;}
+  .kpi-tile .kpi-value{font-size:1.3rem;font-weight:700;}
+  .kpi-tile .kpi-label{font-size:0.78rem;color:#dfe4f5;margin-top:2px;}
+  .kpi-tile.kpi-alert{background:rgba(231,76,60,0.35);}
+  .progress-bar-outer{width:100%;height:6px;background:rgba(255,255,255,0.25);border-radius:4px;margin-top:6px;overflow:hidden;}
+  .progress-bar-inner{height:100%;background:#4ade80;border-radius:4px;transition:width .3s;}
+  .tabs{display:flex;gap:6px;padding-top:4px;}
+  .tab-btn{background:rgba(255,255,255,0.08);border:none;color:#dfe4f5;padding:9px 18px;border-radius:8px 8px 0 0;cursor:pointer;font-size:0.9rem;}
+  .tab-btn.active{background:var(--bg);color:var(--text);font-weight:600;}
+  .toolbar{background:var(--bg);display:flex;gap:10px;flex-wrap:wrap;padding:12px 20px;align-items:center;}
+  .toolbar input[type="text"], .toolbar select{
+    padding:8px 10px;border-radius:8px;border:1px solid var(--border);font-size:0.9rem;background:#fff;
   }
-  .top-inner{
-    max-width:1300px;
-    margin:0 auto;
-  }
-  .title-row{
-    display:flex;
-    align-items:flex-start;
-    justify-content:space-between;
-    flex-wrap:wrap;
-    gap:10px;
-  }
-  .title-row h1{
-    margin:0;
-    font-size:1.5rem;
-    font-weight:700;
-    letter-spacing:.2px;
-  }
-  .badge-col{
-    display:flex;
-    flex-direction:column;
-    align-items:flex-end;
-    gap:6px;
-  }
-  .draft-badge{
-    background:rgba(255,255,255,.18);
-    border:1px solid rgba(255,255,255,.35);
-    padding:4px 10px;
-    border-radius:999px;
-    font-size:.75rem;
-    font-weight:600;
-    white-space:nowrap;
-  }
-  .sync-badge{
-    display:flex;
-    align-items:center;
-    gap:6px;
-    background:rgba(255,255,255,.12);
-    border:1px solid rgba(255,255,255,.3);
-    padding:3px 10px;
-    border-radius:999px;
-    font-size:.72rem;
-    font-weight:600;
-    white-space:nowrap;
-  }
-  .sync-dot{
-    width:9px;height:9px;border-radius:50%;
-    background:#facc15;
-    flex-shrink:0;
-    box-shadow:0 0 0 2px rgba(255,255,255,.25);
-  }
-  .sync-dot.connected{ background:#4ade80; }
-  .sync-dot.connecting{ background:#facc15; }
-  .sync-dot.offline{ background:#f87171; }
-  .demo-note{
-    font-size:.78rem;
-    opacity:.9;
-    margin-top:4px;
-  }
-  .progress-wrap{
-    margin-top:16px;
-  }
-  .progress-label{
-    display:flex;
-    justify-content:space-between;
-    font-size:.85rem;
-    margin-bottom:6px;
-    opacity:.95;
-  }
-  .progress-bar-bg{
-    background:rgba(255,255,255,.25);
-    border-radius:999px;
-    height:12px;
-    overflow:hidden;
-  }
-  .progress-bar-fill{
-    background:#fff;
-    height:100%;
-    border-radius:999px;
-    transition:width .4s ease;
-  }
-
-  .container{
-    max-width:1300px;
-    margin:0 auto;
-    padding:20px 24px 60px;
-  }
-
-  /* KPI Tiles */
-  .kpi-grid{
-    display:grid;
-    grid-template-columns:repeat(4,1fr);
-    gap:14px;
-    margin-bottom:22px;
-  }
-  .kpi-card{
-    background:#fff;
-    border-radius:var(--radius);
-    box-shadow:var(--shadow);
-    padding:16px 18px;
-    border:1px solid var(--gray-200);
-  }
-  .kpi-card .label{
-    font-size:.78rem;
-    color:var(--gray-500);
-    font-weight:600;
-    text-transform:uppercase;
-    letter-spacing:.4px;
-  }
-  .kpi-card .value{
-    font-size:1.9rem;
-    font-weight:700;
-    margin-top:4px;
-    color:var(--gray-900);
-  }
-  .kpi-card.overdue .value{ color:var(--red); }
-  .kpi-card.overdue{ border-color:#fecaca; background:#fef2f2; }
-  .kpi-card .sub{
-    font-size:.72rem;
-    color:var(--gray-500);
-    margin-top:2px;
-  }
-
-  /* Tabs */
-  .tabs{
-    display:flex;
-    gap:8px;
-    margin-bottom:18px;
-    border-bottom:1px solid var(--gray-200);
-  }
-  .tab-btn{
-    background:none;
-    border:none;
-    padding:10px 16px;
-    font-size:.92rem;
-    font-weight:600;
-    color:var(--gray-500);
-    cursor:pointer;
-    border-bottom:3px solid transparent;
-  }
-  .tab-btn.active{
-    color:var(--blue-dark);
-    border-bottom-color:var(--blue);
-  }
-
-  /* Filter bar */
-  .filter-bar{
-    display:flex;
-    gap:10px;
-    flex-wrap:wrap;
-    margin-bottom:18px;
-    background:#fff;
-    padding:12px 14px;
-    border-radius:var(--radius);
-    border:1px solid var(--gray-200);
-    box-shadow:var(--shadow);
-    align-items:center;
-  }
-  .filter-bar input[type="text"], .filter-bar select{
-    padding:8px 10px;
-    border:1px solid var(--gray-300);
-    border-radius:8px;
-    font-size:.85rem;
-    background:var(--gray-50);
-    color:var(--gray-900);
-  }
-  .filter-bar input[type="text"]{ flex:1; min-width:180px; }
-  .filter-bar button.reset{
-    background:var(--gray-100);
-    border:1px solid var(--gray-300);
-    border-radius:8px;
-    padding:8px 12px;
-    font-size:.85rem;
-    cursor:pointer;
-    color:var(--gray-700);
-  }
-  .filter-bar button.reset:hover{ background:var(--gray-200); }
-  .filter-bar button.addnew{
-    background:var(--blue);
-    border:1px solid var(--blue-dark);
-    border-radius:8px;
-    padding:8px 12px;
-    font-size:.85rem;
-    cursor:pointer;
-    color:#fff;
-    font-weight:600;
-    white-space:nowrap;
-  }
-  .filter-bar button.addnew:hover{ background:var(--blue-dark); }
-
-  /* Board */
-  .board{
-    display:flex;
-    gap:16px;
-    overflow-x:auto;
-    padding-bottom:10px;
-  }
-  .column{
-    background:var(--gray-100);
-    border-radius:var(--radius);
-    min-width:280px;
-    flex:1 1 280px;
-    display:flex;
-    flex-direction:column;
-    max-height:none;
-  }
-  .column-header{
-    padding:12px 14px;
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    border-radius:var(--radius) var(--radius) 0 0;
-    font-weight:700;
-    font-size:.88rem;
-    color:#fff;
-  }
-  .column[data-status="none"] .column-header{ background:#64748b; }
-  .column[data-status="initial"] .column-header{ background:#6366f1; }
-  .column[data-status="negotiation"] .column-header{ background:#d97706; }
-  .column[data-status="live"] .column-header{ background:#16a34a; }
-
-  .column-header .count{
-    background:rgba(255,255,255,.25);
-    padding:2px 9px;
-    border-radius:999px;
-    font-size:.78rem;
-  }
-  .cards{
-    padding:10px;
-    display:flex;
-    flex-direction:column;
-    gap:10px;
-    min-height:60px;
-  }
-  .cards.drag-over{
-    background:var(--blue-light);
-    border-radius:0 0 var(--radius) var(--radius);
-  }
-
-  .card{
-    background:#fff;
-    border-radius:10px;
-    padding:12px 12px;
-    box-shadow:var(--shadow);
-    border:1px solid var(--gray-200);
-    cursor:pointer;
-    transition:box-shadow .15s, transform .15s;
-    position:relative;
-  }
-  .card:hover{
-    box-shadow:var(--shadow-md);
-    transform:translateY(-1px);
-  }
-  .card.dragging{ opacity:.5; }
-  .card-top{
-    display:flex;
-    align-items:center;
-    gap:8px;
-    margin-bottom:6px;
-  }
-  .dot{
-    width:10px;height:10px;border-radius:50%;flex-shrink:0;
-  }
-  .dot.green{ background:var(--green); }
-  .dot.yellow{ background:var(--amber); }
-  .dot.red{ background:var(--red); }
-  .card-name{
-    font-weight:700;
-    font-size:.92rem;
-    color:var(--gray-900);
-    flex:1;
-    line-height:1.25;
-  }
-  .card-meta{
-    font-size:.76rem;
-    color:var(--gray-500);
-    margin-bottom:5px;
-  }
-  .card-note{
-    font-size:.78rem;
-    color:var(--gray-700);
-    background:var(--gray-50);
-    padding:6px 8px;
-    border-radius:6px;
-    overflow:hidden;
-    text-overflow:ellipsis;
-    white-space:nowrap;
-  }
-  .mobile-status-select{
-    display:none;
-    width:100%;
-    margin-top:8px;
-    padding:9px 8px;
-    border:1px solid var(--gray-300);
-    border-radius:8px;
-    font-size:.85rem;
-    font-weight:600;
-    background:#fff;
-    color:var(--gray-900);
-    -webkit-appearance:none;
-    appearance:none;
-  }
-  @media (max-width:800px){
-    .mobile-status-select{ display:block; }
-  }
-  .overdue-badge{
-    position:absolute;
-    top:10px;right:10px;
-    background:var(--red);
-    color:#fff;
-    font-size:.68rem;
-    font-weight:700;
-    padding:2px 6px;
-    border-radius:6px;
-  }
-  .priority-tag{
-    display:inline-block;
-    font-size:.68rem;
-    font-weight:700;
-    padding:1px 7px;
-    border-radius:999px;
-    margin-left:6px;
-  }
-  .priority-tag.Hoch{ background:#fee2e2; color:var(--red); }
-  .priority-tag.Mittel{ background:#fef3c7; color:var(--amber); }
-  .priority-tag.Niedrig{ background:#dcfce7; color:var(--green); }
-
-  /* Reminder view */
-  .reminder-list{
-    background:#fff;
-    border-radius:var(--radius);
-    border:1px solid var(--gray-200);
-    overflow:hidden;
-    box-shadow:var(--shadow);
-  }
-  .reminder-item{
-    display:flex;
-    align-items:center;
-    gap:14px;
-    padding:12px 16px;
-    border-bottom:1px solid var(--gray-200);
-    font-size:.88rem;
-  }
-  .reminder-item:last-child{ border-bottom:none; }
-  .reminder-item.overdue{ background:#fef2f2; }
-  .reminder-item.soon{ background:#fffbeb; }
-  .reminder-date{
-    font-weight:700;
-    min-width:90px;
-    color:var(--gray-700);
-  }
-  .reminder-item.overdue .reminder-date{ color:var(--red); }
-  .reminder-item.soon .reminder-date{ color:var(--amber); }
-  .reminder-pub{
-    font-weight:600;
-    min-width:180px;
-    color:var(--gray-900);
-  }
-  .reminder-text{ flex:1; color:var(--gray-700); }
-  .reminder-tag{
-    font-size:.68rem;
-    font-weight:700;
-    padding:2px 8px;
-    border-radius:999px;
-    white-space:nowrap;
-  }
-  .reminder-tag.overdue{ background:var(--red); color:#fff; }
-  .reminder-tag.soon{ background:var(--amber); color:#fff; }
-  .reminder-tag.future{ background:var(--gray-200); color:var(--gray-700); }
+  #searchInput{flex:1;min-width:180px;}
+  #addVerlagBtn{background:var(--accent);color:#fff;border:none;padding:9px 16px;border-radius:8px;cursor:pointer;font-weight:600;font-size:0.9rem;}
+  #addVerlagBtn:hover{background:var(--accent-dark);}
+  .add-form{background:#fff;margin:0 20px 12px 20px;padding:12px;border-radius:10px;display:flex;gap:8px;flex-wrap:wrap;box-shadow:var(--shadow);}
+  .add-form input{flex:1;min-width:180px;padding:8px 10px;border-radius:8px;border:1px solid var(--border);}
+  .add-form button{padding:8px 14px;border-radius:8px;border:none;cursor:pointer;font-weight:600;}
+  #confirmAddVerlag{background:var(--green);color:#fff;}
+  #cancelAddVerlag{background:#eee;color:#333;}
+  main#mainContent{padding:0 20px 30px 20px;}
+  .board{display:flex;gap:16px;overflow-x:auto;padding:6px 0 16px 0;align-items:flex-start;}
+  .board-column{background:#e9ecf3;border-radius:var(--radius);min-width:290px;max-width:320px;flex:1 0 290px;display:flex;flex-direction:column;max-height:calc(100vh - 230px);}
+  .column-header{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;font-weight:700;font-size:0.95rem;border-bottom:2px solid #d7dbe6;}
+  .column-count{background:#fff;border-radius:12px;padding:2px 9px;font-size:0.8rem;color:var(--muted);}
+  .card-list{padding:10px;display:flex;flex-direction:column;gap:10px;overflow-y:auto;flex:1;min-height:60px;}
+  .card-list.drag-over{background:#dbe2fb;}
+  .kanban-card{background:var(--card-bg);border-radius:10px;padding:12px;box-shadow:var(--shadow);cursor:pointer;border:1px solid var(--border);transition:box-shadow .15s,transform .15s;}
+  .kanban-card:hover{box-shadow:var(--shadow-hover);transform:translateY(-1px);}
+  .kanban-card.dragging{opacity:0.4;}
+  .card-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
+  .prio-badge{font-size:0.72rem;font-weight:700;padding:3px 9px;border-radius:12px;color:#fff;text-transform:uppercase;letter-spacing:.3px;}
+  .prio-hoch{background:var(--red);}
+  .prio-mittel{background:var(--yellow);color:#4a3200;}
+  .prio-niedrig{background:var(--green);}
+  .ampel-dot{width:13px;height:13px;border-radius:50%;flex-shrink:0;box-shadow:0 0 0 2px #fff, 0 0 0 3px rgba(0,0,0,0.06);}
+  .ampel-green{background:var(--green);}
+  .ampel-yellow{background:var(--yellow);}
+  .ampel-red{background:var(--red);}
+  .ampel-grey{background:var(--grey);}
+  .card-title{margin:2px 0 8px 0;font-size:1rem;font-weight:700;}
+  .card-meta{font-size:0.82rem;color:var(--muted);display:flex;flex-direction:column;gap:3px;margin-bottom:10px;}
+  .meta-label{color:#8590a3;}
+  .card-footer{border-top:1px dashed var(--border);padding-top:8px;}
+  .status-select{width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--border);font-size:0.82rem;background:#f9fafc;}
+  .empty-hint{color:var(--muted);font-size:0.85rem;padding:8px;text-align:center;}
+  footer{text-align:center;color:var(--muted);font-size:0.8rem;padding:16px;border-top:1px solid var(--border);background:#fff;}
 
   /* Modal */
-  .overlay{
-    position:fixed; inset:0;
-    background:rgba(15,23,42,.5);
-    display:none;
-    align-items:center;
-    justify-content:center;
-    padding:16px;
-    z-index:100;
-  }
-  .overlay.show{ display:flex; }
-  .modal{
-    background:#fff;
-    border-radius:var(--radius);
-    width:100%;
-    max-width:560px;
-    max-height:90vh;
-    overflow-y:auto;
-    box-shadow:0 20px 60px rgba(0,0,0,.25);
-  }
-  .modal-header{
-    padding:18px 22px;
-    border-bottom:1px solid var(--gray-200);
-    display:flex;
-    justify-content:space-between;
-    align-items:flex-start;
-    position:sticky;
-    top:0;
-    background:#fff;
-  }
-  .modal-header h2{
-    margin:0;
-    font-size:1.15rem;
-    color:var(--gray-900);
-  }
-  .modal-close{
-    background:var(--gray-100);
-    border:none;
-    border-radius:8px;
-    width:32px;height:32px;
-    font-size:1rem;
-    cursor:pointer;
-    color:var(--gray-700);
-  }
-  .modal-body{ padding:18px 22px 26px; }
-  .field-group{ margin-bottom:16px; }
-  .field-group label{
-    display:block;
-    font-size:.78rem;
-    font-weight:700;
-    color:var(--gray-500);
-    text-transform:uppercase;
-    letter-spacing:.4px;
-    margin-bottom:6px;
-  }
-  .field-group input[type="text"], .field-group select, .field-group textarea{
-    width:100%;
-    padding:9px 10px;
-    border:1px solid var(--gray-300);
-    border-radius:8px;
-    font-size:.88rem;
-    font-family:inherit;
-    color:var(--gray-900);
-    background:var(--gray-50);
-  }
-  .field-group textarea{ min-height:80px; resize:vertical; }
-  .todo-row{
-    display:flex;
-    align-items:center;
-    gap:10px;
-    padding:8px 0;
-    border-bottom:1px solid var(--gray-100);
-    font-size:.86rem;
-  }
-  .todo-row:last-child{ border-bottom:none; }
-  .todo-row input[type="checkbox"]{ width:16px; height:16px; flex-shrink:0; }
-  .todo-text{ flex:1; }
-  .todo-text.done{ text-decoration:line-through; color:var(--gray-500); }
-  .todo-due{
-    font-size:.75rem;
-    padding:2px 8px;
-    border-radius:999px;
-    font-weight:700;
-    white-space:nowrap;
-    border:none;
-    background:var(--gray-200);
-    color:var(--gray-700);
-    cursor:pointer;
-  }
-  .todo-due.overdue{ background:#fee2e2; color:var(--red); }
-  .todo-due.soon{ background:#fef3c7; color:var(--amber); }
-  .todo-due.future{ background:var(--gray-200); color:var(--gray-700); }
-  .todo-del{
-    background:none;
-    border:none;
-    color:var(--gray-500);
-    cursor:pointer;
-    font-size:.85rem;
-  }
-  .todo-del:hover{ color:var(--red); }
-  .add-todo-row{
-    display:flex;
-    gap:8px;
-    margin-top:10px;
-  }
-  .add-todo-row input[type="text"]{ flex:1; }
-  .add-todo-row input[type="date"]{
-    padding:8px 8px;
-    border:1px solid var(--gray-300);
-    border-radius:8px;
-    font-size:.82rem;
-    background:var(--gray-50);
-  }
-  .add-todo-row button{
-    background:var(--blue);
-    color:#fff;
-    border:none;
-    border-radius:8px;
-    padding:8px 12px;
-    font-size:.82rem;
-    cursor:pointer;
-    font-weight:600;
-  }
-  .history-item{
-    font-size:.84rem;
-    padding:8px 0;
-    border-bottom:1px solid var(--gray-100);
-    color:var(--gray-700);
-  }
-  .history-item:last-child{ border-bottom:none; }
-  .history-date{ font-weight:700; color:var(--gray-900); margin-right:6px; }
-  .empty-note{ font-size:.85rem; color:var(--gray-500); font-style:italic; }
+  .modal-overlay{position:fixed;inset:0;background:rgba(15,20,35,0.55);display:flex;align-items:center;justify-content:center;z-index:200;padding:20px;}
+  .modal-panel{background:#fff;border-radius:14px;width:720px;max-width:100%;max-height:92vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3);}
+  .modal-header{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:16px 20px;border-bottom:1px solid var(--border);position:sticky;top:0;background:#fff;z-index:5;}
+  .verlag-name-input{font-size:1.1rem;font-weight:700;border:none;border-bottom:2px solid transparent;flex:1;padding:4px 2px;}
+  .verlag-name-input:focus{outline:none;border-bottom:2px solid var(--accent);}
+  .btn-icon{background:none;border:none;font-size:1.1rem;cursor:pointer;padding:4px 8px;border-radius:6px;}
+  .btn-icon:hover{background:#f0f2f7;}
+  .close-btn{font-size:1.3rem;color:var(--muted);}
+  .modal-body{padding:16px 20px 24px 20px;}
+  .field-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:18px;}
+  .field-row{display:flex;flex-direction:column;gap:4px;}
+  .field-row.small{margin:8px 0;}
+  .field-row label{font-size:0.78rem;color:var(--muted);font-weight:600;}
+  .field-row input, .field-row select{padding:8px 10px;border-radius:8px;border:1px solid var(--border);font-size:0.9rem;}
+  .section{margin-bottom:22px;}
+  .section h3{margin:0 0 10px 0;font-size:1rem;border-left:4px solid var(--accent);padding-left:8px;}
+  .section-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+  .section-header.small{margin:10px 0 6px 0;}
+  .section-header h3{margin:0;}
+  .btn-small{background:var(--accent);color:#fff;border:none;padding:6px 12px;border-radius:7px;font-size:0.8rem;cursor:pointer;font-weight:600;}
+  .btn-small:hover{background:var(--accent-dark);}
+  .btn-danger{background:var(--red);color:#fff;border:none;padding:8px 16px;border-radius:8px;cursor:pointer;font-weight:600;}
+  .override-toggle{background:#f4f6fb;padding:10px 12px;border-radius:8px;margin-bottom:10px;font-size:0.85rem;}
+  .override-toggle label{display:flex;align-items:center;gap:8px;cursor:pointer;}
+  .website-list{display:flex;flex-direction:column;gap:12px;}
+  .website-card{background:#f7f8fb;border:1px solid var(--border);border-radius:10px;padding:12px;}
+  .website-header{display:flex;gap:8px;align-items:center;margin-bottom:6px;}
+  .website-name-input{flex:1;padding:6px 8px;border-radius:6px;border:1px solid var(--border);font-weight:600;}
+  .kanal-list{margin-top:6px;}
+  .kanal-row{display:flex;gap:6px;align-items:center;margin-bottom:6px;flex-wrap:wrap;}
+  .kanal-row select{padding:5px 6px;border-radius:6px;border:1px solid var(--border);font-size:0.8rem;}
+  .kanal-row input[type="text"]{flex:1;min-width:140px;padding:5px 8px;border-radius:6px;border:1px solid var(--border);font-size:0.8rem;}
+  textarea{width:100%;padding:10px;border-radius:8px;border:1px solid var(--border);font-family:inherit;font-size:0.9rem;resize:vertical;}
+  .todo-list{display:flex;flex-direction:column;gap:6px;margin-bottom:10px;}
+  .todo-item{display:flex;align-items:center;gap:8px;background:#f7f8fb;padding:7px 10px;border-radius:8px;font-size:0.85rem;}
+  .todo-item.done .todo-text{text-decoration:line-through;color:var(--muted);}
+  .todo-item.todo-overdue{background:#fdeceb;}
+  .todo-text{flex:1;}
+  .todo-date{color:var(--muted);font-size:0.78rem;}
+  .add-todo-row{display:flex;gap:6px;flex-wrap:wrap;}
+  .add-todo-row input[type="text"]{flex:1;min-width:150px;padding:7px 9px;border-radius:7px;border:1px solid var(--border);}
+  .add-todo-row input[type="date"]{padding:7px 9px;border-radius:7px;border:1px solid var(--border);}
+  .modal-footer{border-top:1px solid var(--border);padding-top:14px;text-align:right;}
 
-  .modal-footer-actions{
-    display:flex;
-    justify-content:flex-end;
-    margin-top:6px;
-  }
-  .btn-delete{
-    background:#fef2f2;
-    color:var(--red);
-    border:1px solid #fecaca;
-    border-radius:8px;
-    padding:8px 14px;
-    font-size:.82rem;
-    font-weight:700;
-    cursor:pointer;
-  }
-  .btn-delete:hover{ background:#fee2e2; }
+  /* Reminder */
+  .reminder-view{display:flex;flex-direction:column;gap:22px;padding-top:10px;}
+  .reminder-section{background:#fff;border-radius:12px;padding:16px 18px;box-shadow:var(--shadow);}
+  .reminder-section h2{font-size:1.05rem;margin:0 0 12px 0;}
+  .reminder-list{display:flex;flex-direction:column;gap:8px;}
+  .reminder-item{display:flex;justify-content:space-between;align-items:center;gap:10px;background:#f7f8fb;padding:10px 12px;border-radius:9px;flex-wrap:wrap;}
+  .reminder-sub{color:var(--muted);font-size:0.8rem;margin-top:2px;}
 
-  .footer-note{
-    text-align:center;
-    font-size:.78rem;
-    color:var(--gray-500);
-    margin-top:30px;
-  }
-  .footer-note .warn{
-    color:var(--amber);
-    font-weight:600;
-  }
-
-  @media (max-width:800px){
-    .kpi-grid{ grid-template-columns:repeat(2,1fr); }
-    .title-row h1{ font-size:1.2rem; }
-    .column{ min-width:250px; }
+  @media (max-width:700px){
+    .field-grid{grid-template-columns:1fr;}
+    .board-column{min-width:82vw;max-width:82vw;}
+    .kpi-row{grid-template-columns:repeat(2,1fr);}
+    .modal-panel{width:100%;}
+    .topbar-row1 h1{font-size:1.05rem;}
   }
 </style>
 </head>
 <body>
 
-<header class="top">
-  <div class="top-inner">
-    <div class="title-row">
-      <div>
-        <h1>📊 Verlags-Reporting Standardisierung</h1>
-        <div class="demo-note">Entwurf mit Beispieldaten – zeigt den Status der Standardisierungsgespräche mit unseren Reporting-Verlagen (Ziel: XLS/CSV). Live-Sync über Firebase Realtime Database.</div>
-      </div>
-      <div class="badge-col">
-        <span class="draft-badge">🧪 PROTOTYP</span>
-        <span class="sync-badge" id="syncBadge"><span class="sync-dot connecting" id="syncDot"></span><span id="syncText">Verbindung wird hergestellt…</span></span>
-      </div>
-    </div>
-    <div class="progress-wrap">
-      <div class="progress-label">
-        <span id="progressText">0 von 100 Verlagen standardisiert</span>
-        <span id="progressPct">0%</span>
-      </div>
-      <div class="progress-bar-bg">
-        <div class="progress-bar-fill" id="progressFill" style="width:0%"></div>
-      </div>
-    </div>
+<header class="topbar">
+  <div class="topbar-row1">
+    <h1>📚 Verlags-Standardisierung Dashboard</h1>
+    <div class="sync-indicator"><span class="sync-dot connecting" id="syncDot"></span><span id="syncText">Verbinde...</span></div>
+  </div>
+  <div class="kpi-row" id="kpiRow"></div>
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="kanban">Kanban-Board</button>
+    <button class="tab-btn" data-tab="reminder">🔔 Reminder</button>
   </div>
 </header>
 
-<div class="container">
-
-  <div class="kpi-grid">
-    <div class="kpi-card">
-      <div class="label">Gesamtzahl Verlage</div>
-      <div class="value" id="kpiTotal">100</div>
-      <div class="sub" id="kpiTotalSub">0 im Board erfasst</div>
-    </div>
-    <div class="kpi-card">
-      <div class="label">Live / Standardisiert</div>
-      <div class="value" id="kpiLive">0</div>
-      <div class="sub">Standard vereinbart</div>
-    </div>
-    <div class="kpi-card">
-      <div class="label">In Verhandlung</div>
-      <div class="value" id="kpiNegotiation">0</div>
-      <div class="sub">aktive Gespräche</div>
-    </div>
-    <div class="kpi-card overdue">
-      <div class="label">⚠ Überfällige Todos</div>
-      <div class="value" id="kpiOverdue">0</div>
-      <div class="sub" id="kpiOverdueSub">Stand: heute</div>
-    </div>
-  </div>
-
-  <div class="tabs">
-    <button class="tab-btn active" data-tab="board" id="tabBoardBtn">🗂 Kanban-Board</button>
-    <button class="tab-btn" data-tab="reminder" id="tabReminderBtn">⏰ Reminder & Fällige Todos</button>
-  </div>
-
-  <div id="viewBoard">
-    <div class="filter-bar">
-      <input type="text" id="searchInput" placeholder="🔍 Verlag suchen…">
-      <select id="statusFilter">
-        <option value="all">Alle Status</option>
-        <option value="none">Noch nicht kontaktiert</option>
-        <option value="initial">Erstkontakt</option>
-        <option value="negotiation">In Verhandlung</option>
-        <option value="live">Standard vereinbart / Live</option>
-      </select>
-      <select id="priorityFilter">
-        <option value="all">Alle Prioritäten</option>
-        <option value="Hoch">Hoch</option>
-        <option value="Mittel">Mittel</option>
-        <option value="Niedrig">Niedrig</option>
-      </select>
-      <button class="reset" id="resetFilters">Zurücksetzen</button>
-      <button class="addnew" id="addNewBtn">+ Neuer Verlag</button>
-    </div>
-
-    <div class="board" id="board"></div>
-  </div>
-
-  <div id="viewReminder" style="display:none;">
-    <p style="font-size:.85rem;color:var(--gray-500);margin-top:0;">Alle offenen Todos über alle Verlage, sortiert nach Fälligkeitsdatum. <span style="color:var(--red);font-weight:700;">Rot</span> = überfällig, <span style="color:var(--amber);font-weight:700;">Gelb</span> = fällig in den nächsten 7 Tagen.</p>
-    <div class="reminder-list" id="reminderList"></div>
-  </div>
-
-  <div class="footer-note">⚠️ Live-Daten via Firebase Realtime Database – Änderungen werden für alle Nutzer sofort gespeichert und synchronisiert.<br>
-  <span class="warn">Hinweis: Test-Setup mit offenen Firebase-Testmodus-Regeln (30 Tage gültig).</span> Für den produktiven Einsatz mit echten Verlagsdaten müssen die Firebase Security Rules noch abgesichert werden (aktuell kein Schreibschutz gegen Zugriffe aus dem Internet).</div>
+<div class="toolbar" id="kanbanToolbar">
+  <input id="searchInput" type="text" placeholder="🔍 Verlag, Kontakt suchen...">
+  <select id="filterStatus">
+    <option value="all">Alle Status</option>
+    <option value="pipeline">Pipeline</option>
+    <option value="austausch">Austausch</option>
+    <option value="test">Test</option>
+    <option value="automatisiert">Automatisiert</option>
+  </select>
+  <select id="filterPrio">
+    <option value="all">Alle Prioritäten</option>
+    <option value="hoch">Hoch</option>
+    <option value="mittel">Mittel</option>
+    <option value="niedrig">Niedrig</option>
+  </select>
+  <button id="addVerlagBtn">+ Neuer Verlag</button>
+</div>
+<div class="add-form hidden" id="addVerlagForm">
+  <input type="text" id="newVerlagName" placeholder="Name des neuen Verlags...">
+  <button id="confirmAddVerlag">Anlegen</button>
+  <button id="cancelAddVerlag">Abbrechen</button>
 </div>
 
-<div class="overlay" id="overlay">
-  <div class="modal">
-    <div class="modal-header">
-      <h2 id="modalTitle">Verlagsname</h2>
-      <button class="modal-close" id="modalClose">✕</button>
+<main id="mainContent">
+  <section id="kanbanView" class="board">
+    <div class="board-column" data-status="pipeline">
+      <div class="column-header"><span>📋 Pipeline</span><span class="column-count" data-status="pipeline">0</span></div>
+      <div class="card-list" data-status="pipeline"></div>
     </div>
-    <div class="modal-body" id="modalBody"></div>
-  </div>
-</div>
+    <div class="board-column" data-status="austausch">
+      <div class="column-header"><span>🔄 Austausch</span><span class="column-count" data-status="austausch">0</span></div>
+      <div class="card-list" data-status="austausch"></div>
+    </div>
+    <div class="board-column" data-status="test">
+      <div class="column-header"><span>🧪 Test</span><span class="column-count" data-status="test">0</span></div>
+      <div class="card-list" data-status="test"></div>
+    </div>
+    <div class="board-column" data-status="automatisiert">
+      <div class="column-header"><span>✅ Automatisiert</span><span class="column-count" data-status="automatisiert">0</span></div>
+      <div class="card-list" data-status="automatisiert"></div>
+    </div>
+  </section>
 
-<!-- Firebase SDK (compat, v10) -->
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+  <section id="reminderView" class="reminder-view hidden"></section>
+</main>
+
+<div id="modalOverlay" class="modal-overlay hidden"></div>
+
+<footer>
+  ⚠️ Testmodus / Demo-Daten, echte Verlagsdaten werden im nächsten Schritt eingepflegt.
+</footer>
 
 <script>
-/* ==========================================================================
-   FIREBASE-ANBINDUNG – WICHTIGER HINWEIS:
-   Dies ist ein Test-Setup mit offenen Firebase Realtime Database
-   Testmodus-Regeln (30 Tage gültig, kein Auth-Schutz). Für den produktiven
-   Einsatz mit echten Verlagsdaten MÜSSEN die Firebase Security Rules noch
-   abgesichert werden (kein offener Lese-/Schreibzugriff für jeden im Internet).
-   ========================================================================== */
-const firebaseConfig = {
-  apiKey: "AIzaSyB6BpIB-v-1m9yQdqF7f8ak3VGziWyciYU",
-  authDomain: "testdashboard-db.firebaseapp.com",
-  databaseURL: "https://testdashboard-db-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "testdashboard-db",
-  storageBucket: "testdashboard-db.firebasestorage.app",
-  messagingSenderId: "873738693040",
-  appId: "1:873738693040:web:fd4641d6310ec74b364e75",
-  measurementId: "G-MF0D6LMBDE"
-};
+(function(){
+  "use strict";
 
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
-const verlageRef = db.ref('verlage');
-
-/* ============ Sync-Status Anzeige ============ */
-function setSyncStatus(state){
-  const dot = document.getElementById('syncDot');
-  const text = document.getElementById('syncText');
-  dot.className = 'sync-dot ' + state;
-  if(state==='connected'){ text.textContent = 'Verbunden'; }
-  else if(state==='connecting'){ text.textContent = 'Verbindung wird hergestellt…'; }
-  else { text.textContent = 'Offline – Änderungen werden nicht gespeichert'; }
-}
-db.ref('.info/connected').on('value', (snap)=>{
-  if(snap.val()===true){ setSyncStatus('connected'); }
-  else { setSyncStatus('offline'); }
-});
-
-/* ============ Daten / Helper ============ */
-const TOTAL_VERLAGE = 100;
-
-const COLUMNS = [
-  {key:'none', label:'Noch nicht kontaktiert'},
-  {key:'initial', label:'Erstkontakt'},
-  {key:'negotiation', label:'In Verhandlung'},
-  {key:'live', label:'Standard vereinbart / Live'}
-];
-const STATUS_LABEL = Object.fromEntries(COLUMNS.map(c=>[c.key,c.label]));
-
-let todoIdCounter = 1;
-function T(text, due, done){
-  if(done===undefined) done=false;
-  return {id: todoIdCounter++, text:text, due:due, done:done};
-}
-
-/* Seed-Daten (nur genutzt, falls Firebase-Pfad "verlage" noch leer ist) */
-function buildSeedData(){
-  todoIdCounter = 1;
-  return {
-    p1: {id:'p1', name:"Nordmedia Verlag GmbH", status:'live', priority:'Niedrig',
-     note:"XLS-Standard seit Juni aktiv, läuft stabil.",
-     history:[{date:'2026-05-02',text:'Vertrag zur Standardisierung unterschrieben'},{date:'2026-06-01',text:'Erste XLS-Lieferung erhalten, passt einwandfrei.'}],
-     todos:[T('Quartalscheck durchführen','2026-09-01')]},
-    p2: {id:'p2', name:"Rheinland Presse Verlag", status:'live', priority:'Mittel',
-     note:"CSV-Format läuft, kleine Anpassung bei Spaltennamen nötig.",
-     history:[{date:'2026-04-10',text:'Standard vereinbart'}],
-     todos:[T('Spaltennamen-Update prüfen','2026-07-14')]},
-    p3: {id:'p3', name:"Baltic Publishing House", status:'live', priority:'Hoch',
-     note:"Wichtiger Partner, XLS läuft seit April fehlerfrei.",
-     history:[{date:'2026-03-20',text:'Kickoff Standardisierung'}],
-     todos:[T('Feedback-Call vereinbaren','2026-07-08')]},
-    p4: {id:'p4', name:"Alpen Verlagsgruppe", status:'live', priority:'Niedrig',
-     note:"Läuft automatisiert, aktuell keine offenen Punkte.",
-     history:[{date:'2026-02-15',text:'Standard vereinbart'}],
-     todos:[T('Jahresreview einplanen','2026-12-01')]},
-    p5: {id:'p5', name:"Erzgebirge Verlag", status:'live', priority:'Mittel',
-     note:"XLS-Reports seit Mai, gelegentlich leicht verspätet.",
-     history:[{date:'2026-05-01',text:'Standard vereinbart'}],
-     todos:[T('Verspätungen ansprechen','2026-07-09')]},
-    p6: {id:'p6', name:"Süddeutsche Medienhaus AG", status:'negotiation', priority:'Hoch',
-     note:"Verhandlung über CSV-Feldstruktur, Rückmeldung ausstehend.",
-     history:[{date:'2026-06-01',text:'Erstes Verhandlungsgespräch'}],
-     todos:[T('Rückmeldung zu Feldstruktur einholen','2026-07-05')]},
-    p7: {id:'p7', name:"Hanseatica Verlag & Co", status:'negotiation', priority:'Mittel',
-     note:"Prüft intern XLS-Vorlage, Antwort in Kürze erwartet.",
-     history:[{date:'2026-06-15',text:'Vorlage versendet'}],
-     todos:[T('Nachfassen zur XLS-Vorlage','2026-07-12')]},
-    p8: {id:'p8', name:"Elbtal Medien Gruppe", status:'negotiation', priority:'Niedrig',
-     note:"Kein Zeitdruck, Gespräch läuft entspannt.",
-     history:[{date:'2026-06-20',text:'Gespräch begonnen'}],
-     todos:[T('Zwischenstatus einholen','2026-07-20')]},
-    p9: {id:'p9', name:"Weser Kurier Verlagsgruppe", status:'negotiation', priority:'Hoch',
-     note:"Termin verpasst, dringend nachfassen!",
-     history:[{date:'2026-05-25',text:'Erstgespräch'}],
-     todos:[T('Dringend nachfassen – Termin verpasst','2026-07-01')]},
-    p10: {id:'p10', name:"Taunus Presse Gruppe", status:'negotiation', priority:'Mittel',
-     note:"Detailfragen zu CSV-Trennzeichen offen.",
-     history:[{date:'2026-06-28',text:'Technisches Gespräch'}],
-     todos:[T('Trennzeichen final klären','2026-07-11')]},
-    p11: {id:'p11', name:"Franken Verlag AG", status:'initial', priority:'Mittel',
-     note:"Erstkontakt hergestellt, wartet auf internen Entscheider.",
-     history:[{date:'2026-07-01',text:'Erste E-Mail gesendet'}],
-     todos:[T('Entscheider-Kontakt herstellen','2026-07-15')]},
-    p12: {id:'p12', name:"Schwarzwald Presse Verlag", status:'initial', priority:'Hoch',
-     note:"Antwort seit Wochen überfällig, Eskalation prüfen.",
-     history:[{date:'2026-06-10',text:'Erstkontakt per Telefon'}],
-     todos:[T('Eskalation prüfen / Telefonat','2026-07-03')]},
-    p13: {id:'p13', name:"Nordsee Zeitungsverlag", status:'initial', priority:'Niedrig',
-     note:"Interesse signalisiert, kein akuter Bedarf.",
-     history:[{date:'2026-07-02',text:'Kontaktaufnahme per Mail'}],
-     todos:[T('Follow-up Mail senden','2026-08-01')]},
-    p14: {id:'p14', name:"Isar Medienwerk GmbH", status:'initial', priority:'Mittel',
-     note:"Termin für Detailgespräch vereinbart.",
-     history:[{date:'2026-07-03',text:'Termin vereinbart'}],
-     todos:[T('Detailgespräch vorbereiten','2026-07-10')]},
-    p15: {id:'p15', name:"Donau Verlagshaus", status:'none', priority:'Niedrig',
-     note:"Noch keine Kontaktaufnahme erfolgt.",
-     history:[],
-     todos:[T('Erstkontakt herstellen','2026-07-25')]},
-    p16: {id:'p16', name:"Moselland Medien Verlag", status:'none', priority:'Mittel',
-     note:"Auf Kontaktliste für diese Woche gesetzt.",
-     history:[],
-     todos:[T('Erstkontakt herstellen','2026-07-09')]},
-    p17: {id:'p17', name:"Spreewald Verlag GmbH", status:'none', priority:'Hoch',
-     note:"Prioritär – Kontakt hätte längst erfolgen sollen.",
-     history:[],
-     todos:[T('Dringend Erstkontakt herstellen','2026-06-28')]},
-    p18: {id:'p18', name:"Ostsee Medienhaus", status:'none', priority:'Niedrig',
-     note:"Niedrige Priorität, später einplanen.",
-     history:[],
-     todos:[T('Erstkontakt einplanen','2026-09-01')]}
+  /* ================= Firebase Config ================= */
+  var firebaseConfig = {
+    apiKey: "AIzaSyB6BpIB-v-1m9yQdqF7f8ak3VGziWyciYU",
+    authDomain: "testdashboard-db.firebaseapp.com",
+    databaseURL: "https://testdashboard-db-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "testdashboard-db",
+    storageBucket: "testdashboard-db.firebasestorage.app",
+    messagingSenderId: "873738693040",
+    appId: "1:873738693040:web:fd4641d6310ec74b364e75",
+    measurementId: "G-MF0D6LMBDE"
   };
-}
 
-/* ============ Helper ============ */
-function parseDate(s){ return new Date(s+'T00:00:00'); }
-function fmtDate(s){ if(!s) return '–'; const d=parseDate(s); return d.toLocaleDateString('de-DE'); }
-function todayStr(){
-  const d = new Date();
-  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-}
-const TODAY = new Date();
-TODAY.setHours(0,0,0,0);
-function dueStatus(dueStr){
-  if(!dueStr) return 'future';
-  const d = parseDate(dueStr);
-  const diff = Math.round((d - TODAY)/86400000);
-  if(diff < 0) return 'overdue';
-  if(diff <= 7) return 'soon';
-  return 'future';
-}
-function todosArr(p){
-  if(!p.todos) return [];
-  return Array.isArray(p.todos) ? p.todos.filter(Boolean) : Object.values(p.todos);
-}
-function historyArr(p){
-  if(!p.history) return [];
-  return Array.isArray(p.history) ? p.history.filter(Boolean) : Object.values(p.history);
-}
-function cardMeta(p){
-  const todos = todosArr(p);
-  const undone = todos.filter(function(t){ return !t.done; }).sort(function(a,b){ return parseDate(a.due)-parseDate(b.due); });
-  const next = undone[0] || null;
-  const overdueCount = undone.filter(function(t){ return dueStatus(t.due)==='overdue'; }).length;
-  let ampel = 'green';
-  if(overdueCount>0){ ampel='red'; }
-  else if(next && dueStatus(next.due)==='soon'){ ampel='yellow'; }
-  else if(p.priority==='Hoch'){ ampel='yellow'; }
-  return {next:next, overdueCount:overdueCount, ampel:ampel};
-}
+  var dbRef = null;
+  var usingFirebase = false;
+  var saveTimers = {};
 
-/* ============ State ============ */
-let publishers = []; // array of publisher objects, each with .id = firebase key
-let filters = {search:'', status:'all', priority:'all'};
-let activeTab = 'board';
-let modalId = null;
-let dragId = null;
-let dataLoaded = false;
+  var STATUS_LABELS = {pipeline:"Pipeline", austausch:"Austausch", test:"Test", automatisiert:"Automatisiert"};
+  var PRIO_LABELS = {hoch:"Hoch", mittel:"Mittel", niedrig:"Niedrig"};
+  var TARGET_TOTAL = 100;
 
-/* ============ Firebase: Laden & Live-Sync ============ */
-verlageRef.once('value').then(function(snap){
-  if(!snap.exists()){
-    const seed = buildSeedData();
-    verlageRef.set(seed).catch(function(err){ console.error('Seed-Fehler:', err); });
+  var state = {
+    verlage: {},
+    filter: {search:"", status:"all", prioritaet:"all"},
+    selectedId: null,
+    currentTab: "kanban",
+    draggingId: null
+  };
+
+  /* ================= Helpers ================= */
+  function uid(prefix){
+    return (prefix||"id") + "_" + Date.now().toString(36) + Math.random().toString(36).slice(2,9);
   }
-  attachLiveListener();
-}).catch(function(err){
-  console.error('Firebase Ladefehler:', err);
-  attachLiveListener();
-});
+  function todayISO(){
+    return new Date().toISOString().slice(0,10);
+  }
+  function daysAgoISO(n){
+    var d = new Date();
+    d.setDate(d.getDate()-n);
+    return d.toISOString().slice(0,10);
+  }
+  function esc(str){
+    if(str === undefined || str === null) return "";
+    return String(str).replace(/[&<>"']/g, function(s){
+      return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[s];
+    });
+  }
+  function formatDate(iso){
+    if(!iso) return "–";
+    var parts = iso.split("-");
+    if(parts.length !== 3) return iso;
+    return parts[2] + "." + parts[1] + "." + parts[0];
+  }
+  function workdaysSince(dateStr){
+    if(!dateStr) return null;
+    var start = new Date(dateStr + "T00:00:00");
+    if(isNaN(start.getTime())) return null;
+    var end = new Date();
+    end.setHours(0,0,0,0);
+    start.setHours(0,0,0,0);
+    if(start >= end) return 0;
+    var count = 0;
+    var cur = new Date(start);
+    cur.setDate(cur.getDate()+1);
+    while(cur <= end){
+      var day = cur.getDay();
+      if(day !== 0 && day !== 6) count++;
+      cur.setDate(cur.getDate()+1);
+    }
+    return count;
+  }
+  function ampelInfo(dateStr){
+    if(!dateStr) return {level:"grey", workdays:null, text:"Kein Kontaktdatum erfasst"};
+    var wd = workdaysSince(dateStr);
+    if(wd >= 3) return {level:"red", workdays:wd, text: wd + " Werktage seit letztem Kontakt – überfällig"};
+    if(wd === 2) return {level:"yellow", workdays:wd, text: wd + " Werktage seit letztem Kontakt – bald fällig"};
+    return {level:"green", workdays:wd, text: wd + " Werktag(e) seit letztem Kontakt"};
+  }
+  function getEffectiveContacts(v){
+    if(v.websitesUnabhaengig && v.websites && Object.keys(v.websites).length > 0){
+      return Object.keys(v.websites).map(function(wid){
+        var w = v.websites[wid];
+        return {label: w.name, date: w.letzterKontakt || null, isWebsite:true, wid: wid};
+      });
+    }
+    return [{label: v.name, date: v.letzterKontakt || null, isWebsite:false, wid:null}];
+  }
+  function getVerlagAmpel(v){
+    var contacts = getEffectiveContacts(v);
+    var rank = {grey:3, red:2, yellow:1, green:0};
+    var worst = null;
+    contacts.forEach(function(c){
+      var info = ampelInfo(c.date);
+      if(!worst || rank[info.level] > rank[worst.level]) worst = info;
+    });
+    return worst || {level:"grey", workdays:null, text:"Kein Datum"};
+  }
 
-function attachLiveListener(){
-  verlageRef.on('value', function(snap){
-    dataLoaded = true;
-    const val = snap.val() || {};
-    publishers = Object.keys(val).map(function(key){
-      const p = val[key] || {};
-      return {
-        id: key,
-        name: p.name || '(Unbenannt)',
-        status: p.status || 'none',
-        priority: p.priority || 'Mittel',
-        note: p.note || '',
-        history: historyArr(p),
-        todos: todosArr(p)
+  /* ================= Demo-Daten ================= */
+  function makeKanal(typ, format, link){
+    return {typ: typ, format: format, beispielLink: link};
+  }
+
+  function buildDemoData(){
+    var defs = [
+      {name:"Süddeutscher Medienverlag", kv:"Petra Hoffmann", zi:"Julia Berger", prio:"hoch", status:"pipeline", tage:1,
+        sites:[{name:"sueddeutscher-medien.de", kanaele:["Mailing","Display"]}],
+        todos:[{id:uid("t"), text:"Testdatei anfordern", faellig: daysAgoISO(-2), erledigt:false}]},
+      {name:"Rheinische Post Gruppe", kv:"Michael Krüger", zi:"Tobias Wolf", prio:"mittel", status:"pipeline", tage:4,
+        sites:[{name:"rp-gruppe.de", kanaele:["Display","Social"]}]},
+      {name:"Nordkurier Verlagsgruppe", kv:"Anke Reimann", zi:"Julia Berger", prio:"niedrig", status:"pipeline", tage:0,
+        sites:[{name:"nordkurier-vg.de", kanaele:["Mailing"]}]},
+      {name:"Bayerischer Anzeiger", kv:"Stefan Huber", zi:"Nina Fischer", prio:"mittel", status:"pipeline", tage:6,
+        sites:[{name:"bayerischer-anzeiger.de", kanaele:["Kombi"]}]},
+      {name:"Schleswig-Holstein Medienhaus", kv:"Lars Petersen", zi:"Tobias Wolf", prio:"hoch", status:"pipeline", tage:9,
+        sites:[{name:"sh-medienhaus.de", kanaele:["Mailing","Display","Social"]}]},
+      {name:"Hamburger Wochenschau", kv:"Claudia Nowak", zi:"Julia Berger", prio:"hoch", status:"austausch", tage:2,
+        websitesUnabhaengig:true,
+        sites:[
+          {name:"hamburger-wochenschau.de", kanaele:["Mailing","Display"], tage:2},
+          {name:"hw-regional.de", kanaele:["Social"], tage:6}
+        ]},
+      {name:"Westfälische Rundschau", kv:"Jürgen Wagner", zi:"Nina Fischer", prio:"mittel", status:"austausch", tage:1,
+        sites:[{name:"westfaelische-rundschau.de", kanaele:["Display"]}]},
+      {name:"Sächsische Zeitungsgruppe", kv:"Kathrin Lehmann", zi:"Tobias Wolf", prio:"hoch", status:"austausch", tage:5,
+        sites:[{name:"saechsische-zg.de", kanaele:["Mailing","Kombi"]}],
+        todos:[{id:uid("t"), text:"Rückmeldung Formatwahl einholen", faellig: daysAgoISO(1), erledigt:false}]},
+      {name:"Thüringer Allgemeine Medien", kv:"Robert Schulz", zi:"Julia Berger", prio:"niedrig", status:"austausch", tage:3,
+        sites:[{name:"thueringer-allg-medien.de", kanaele:["Social"]}]},
+      {name:"Pfälzischer Merkur Verlag", kv:"Sabine Klein", zi:"Nina Fischer", prio:"mittel", status:"austausch", tage:0,
+        sites:[{name:"pfaelzischer-merkur.de", kanaele:["Mailing","Display"]}]},
+      {name:"Berliner Tagesspiegel Verlag", kv:"Thomas Becker", zi:"Tobias Wolf", prio:"hoch", status:"test", tage:1,
+        sites:[{name:"tagesspiegel-verlag.de", kanaele:["Mailing","Display","Kombi"]}],
+        todos:[{id:uid("t"), text:"Testlauf validieren", faellig: daysAgoISO(0), erledigt:false}]},
+      {name:"Frankfurter Verlagshaus", kv:"Melanie Voigt", zi:"Julia Berger", prio:"mittel", status:"test", tage:2,
+        sites:[{name:"frankfurter-verlagshaus.de", kanaele:["Display"]}]},
+      {name:"Kölner Stadtmedien", kv:"Andreas Zimmer", zi:"Nina Fischer", prio:"mittel", status:"test", tage:7,
+        websitesUnabhaengig:true,
+        sites:[
+          {name:"koelner-stadtmedien.de", kanaele:["Mailing"], tage:1},
+          {name:"ks-magazin.de", kanaele:["Social","Display"], tage:9}
+        ]},
+      {name:"Stuttgarter Pressehaus", kv:"Verena Graf", zi:"Tobias Wolf", prio:"niedrig", status:"test", tage:0,
+        sites:[{name:"stuttgarter-pressehaus.de", kanaele:["Kombi"]}]},
+      {name:"Hessische Verlagsgesellschaft", kv:"Frank Ludwig", zi:"Julia Berger", prio:"hoch", status:"automatisiert", tage:1,
+        notizen:"Automatisierung läuft stabil seit Q2. Monatliches Kurzcheck reicht aus.",
+        sites:[{name:"hessische-vg.de", kanaele:["Mailing","Display","Social","Kombi"]}],
+        todos:[{id:uid("t"), text:"Quartalscheck durchführen", faellig: daysAgoISO(-14), erledigt:false}]},
+      {name:"Niedersächsischer Mediendienst", kv:"Christine Roth", zi:"Nina Fischer", prio:"mittel", status:"automatisiert", tage:2,
+        sites:[{name:"nds-mediendienst.de", kanaele:["Mailing","Display"]}]},
+      {name:"Saarländischer Verlag", kv:"Oliver Franke", zi:"Tobias Wolf", prio:"niedrig", status:"automatisiert", tage:3,
+        sites:[{name:"saarlaendischer-verlag.de", kanaele:["Display"]}]},
+      {name:"Brandenburger Zeitungsverlag", kv:"Susanne Albrecht", zi:"Julia Berger", prio:"mittel", status:"automatisiert", tage:0,
+        sites:[{name:"brandenburger-zv.de", kanaele:["Mailing","Kombi"]}]}
+    ];
+
+    var result = {};
+    defs.forEach(function(def){
+      var verlagId = uid("v");
+      var websites = {};
+      def.sites.forEach(function(s){
+        var wid = uid("w");
+        var kanaele = {};
+        s.kanaele.forEach(function(typ, ki){
+          var kid = uid("k");
+          var format = (ki % 2 === 0) ? "XLS" : "CSV";
+          var ext = (format === "XLS") ? "xlsx" : "csv";
+          var slug = def.name.toLowerCase().replace(/[^a-z0-9]+/g,"-");
+          kanaele[kid] = makeKanal(typ, format, "https://beispiel-reporting.de/" + slug + "/" + typ.toLowerCase() + "." + ext);
+        });
+        websites[wid] = {
+          name: s.name,
+          letzterKontakt: daysAgoISO(s.tage !== undefined ? s.tage : def.tage),
+          kanaele: kanaele
+        };
+      });
+      result[verlagId] = {
+        name: def.name,
+        kontaktVerlag: def.kv,
+        zustaendigIntern: def.zi,
+        prioritaet: def.prio,
+        status: def.status,
+        letzterKontakt: daysAgoISO(def.tage),
+        websitesUnabhaengig: !!def.websitesUnabhaengig,
+        notizen: def.notizen || "",
+        todos: def.todos || [],
+        websites: websites
       };
     });
-    renderAll();
-  });
-}
-
-/* ============ Firebase Write-Helper ============ */
-function fbUpdate(id, patch){
-  db.ref('verlage/'+id).update(patch).catch(function(err){ console.error('Speichern fehlgeschlagen:', err); });
-}
-function fbSetTodos(id, todos){
-  db.ref('verlage/'+id+'/todos').set(todos).catch(function(err){ console.error('Speichern fehlgeschlagen:', err); });
-}
-function fbSetHistory(id, history){
-  db.ref('verlage/'+id+'/history').set(history).catch(function(err){ console.error('Speichern fehlgeschlagen:', err); });
-}
-function fbDelete(id){
-  db.ref('verlage/'+id).remove().catch(function(err){ console.error('Löschen fehlgeschlagen:', err); });
-}
-function fbCreate(data){
-  const newRef = verlageRef.push();
-  newRef.set(data).catch(function(err){ console.error('Anlegen fehlgeschlagen:', err); });
-  return newRef.key;
-}
-
-/* ============ Render: KPIs & Progress ============ */
-function renderKPIs(){
-  const liveCount = publishers.filter(function(p){ return p.status==='live'; }).length;
-  const negCount = publishers.filter(function(p){ return p.status==='negotiation'; }).length;
-  let overdueTodos = 0;
-  publishers.forEach(function(p){
-    todosArr(p).forEach(function(t){
-      if(!t.done && dueStatus(t.due)==='overdue'){ overdueTodos++; }
-    });
-  });
-
-  document.getElementById('kpiTotal').textContent = TOTAL_VERLAGE;
-  document.getElementById('kpiTotalSub').textContent = publishers.length + ' im Board erfasst';
-  document.getElementById('kpiLive').textContent = liveCount;
-  document.getElementById('kpiNegotiation').textContent = negCount;
-  document.getElementById('kpiOverdue').textContent = overdueTodos;
-  document.getElementById('kpiOverdueSub').textContent = 'Stand: ' + new Date().toLocaleDateString('de-DE');
-
-  const pct = Math.round((liveCount/TOTAL_VERLAGE)*100);
-  document.getElementById('progressText').textContent = liveCount + ' von ' + TOTAL_VERLAGE + ' Verlagen standardisiert';
-  document.getElementById('progressPct').textContent = pct + '%';
-  document.getElementById('progressFill').style.width = pct + '%';
-}
-
-/* ============ Render: Board ============ */
-function passesFilter(p){
-  const q = filters.search.trim().toLowerCase();
-  if(q && !p.name.toLowerCase().includes(q)) return false;
-  if(filters.status!=='all' && p.status!==filters.status) return false;
-  if(filters.priority!=='all' && p.priority!==filters.priority) return false;
-  return true;
-}
-
-function renderBoard(){
-  const board = document.getElementById('board');
-  board.innerHTML = '';
-
-  COLUMNS.forEach(function(col){
-    const colPubs = publishers.filter(function(p){ return p.status===col.key && passesFilter(p); });
-
-    const colEl = document.createElement('div');
-    colEl.className = 'column';
-    colEl.dataset.status = col.key;
-    colEl.innerHTML =
-      '<div class="column-header">' +
-        '<span>' + col.label + '</span>' +
-        '<span class="count">' + colPubs.length + '</span>' +
-      '</div>' +
-      '<div class="cards" data-status="' + col.key + '"></div>';
-    board.appendChild(colEl);
-
-    const cardsEl = colEl.querySelector('.cards');
-
-    colPubs.forEach(function(p){
-      const meta = cardMeta(p);
-      const card = document.createElement('div');
-      card.className = 'card';
-      card.draggable = true;
-      card.dataset.id = p.id;
-
-      const overdueBadgeHtml = meta.overdueCount>0 ? '<span class="overdue-badge">⚠ überfällig</span>' : '';
-      const metaDateText = meta.next ? fmtDate(meta.next.due) : 'kein offenes Todo';
-      const noteText = p.note ? p.note : '—';
-      const optionsHtml = COLUMNS.map(function(c){
-        return '<option value="' + c.key + '"' + (c.key===p.status?' selected':'') + '>' + c.label + '</option>';
-      }).join('');
-
-      card.innerHTML =
-        overdueBadgeHtml +
-        '<div class="card-top">' +
-          '<span class="dot ' + meta.ampel + '"></span>' +
-          '<span class="card-name">' + p.name + '</span>' +
-        '</div>' +
-        '<div class="card-meta">' +
-          '📅 ' + metaDateText +
-          '<span class="priority-tag ' + p.priority + '">' + p.priority + '</span>' +
-        '</div>' +
-        '<div class="card-note">' + noteText + '</div>' +
-        '<select class="mobile-status-select" data-id="' + p.id + '">' + optionsHtml + '</select>';
-
-      card.addEventListener('click', function(){
-        openModal(p.id);
-      });
-
-      const mobileSelect = card.querySelector('.mobile-status-select');
-      mobileSelect.addEventListener('click', function(e){
-        e.stopPropagation();
-      });
-      mobileSelect.addEventListener('change', function(e){
-        e.stopPropagation();
-        const newStatus = e.target.value;
-        if(newStatus !== p.status){
-          const newHistory = historyArr(p).concat([{date:todayStr(), text:'Status geändert zu „' + STATUS_LABEL[newStatus] + '“ (mobile Auswahl)'}]);
-          fbUpdate(p.id, {status: newStatus, history: newHistory});
-        }
-      });
-
-      card.addEventListener('dragstart', function(e){
-        dragId = p.id;
-        card.classList.add('dragging');
-        e.dataTransfer.effectAllowed = 'move';
-      });
-      card.addEventListener('dragend', function(){
-        card.classList.remove('dragging');
-      });
-
-      cardsEl.appendChild(card);
-    });
-
-    cardsEl.addEventListener('dragover', function(e){
-      e.preventDefault();
-      cardsEl.classList.add('drag-over');
-    });
-    cardsEl.addEventListener('dragleave', function(){
-      cardsEl.classList.remove('drag-over');
-    });
-    cardsEl.addEventListener('drop', function(e){
-      e.preventDefault();
-      cardsEl.classList.remove('drag-over');
-      if(dragId!=null){
-        const pub = publishers.find(function(x){ return x.id===dragId; });
-        if(pub && pub.status !== col.key){
-          const newHistory = historyArr(pub).concat([{date:todayStr(), text:'Status manuell geändert zu „' + col.label + '“ (Drag & Drop)'}]);
-          fbUpdate(pub.id, {status: col.key, history: newHistory});
-        }
-        dragId = null;
-      }
-    });
-  });
-}
-
-/* ============ Render: Reminder Tab ============ */
-function renderReminders(){
-  const list = document.getElementById('reminderList');
-  let items = [];
-  publishers.forEach(function(p){
-    todosArr(p).filter(function(t){ return !t.done; }).forEach(function(t){
-      items.push({pub:p.name, pubId:p.id, text:t.text, due:t.due, status:dueStatus(t.due)});
-    });
-  });
-  items.sort(function(a,b){ return parseDate(a.due)-parseDate(b.due); });
-
-  if(items.length===0){
-    list.innerHTML = '<div class="reminder-item">Keine offenen Todos vorhanden.</div>';
-    return;
+    return result;
   }
 
-  list.innerHTML = items.map(function(it){
-    const tagLabel = it.status==='overdue' ? 'überfällig' : (it.status==='soon' ? 'bald fällig' : 'geplant');
-    return (
-      '<div class="reminder-item ' + it.status + '" data-pubid="' + it.pubId + '" style="cursor:pointer;">' +
-        '<span class="reminder-date">' + fmtDate(it.due) + '</span>' +
-        '<span class="reminder-pub">' + it.pub + '</span>' +
-        '<span class="reminder-text">' + it.text + '</span>' +
-        '<span class="reminder-tag ' + it.status + '">' + tagLabel + '</span>' +
-      '</div>'
-    );
-  }).join('');
-
-  list.querySelectorAll('.reminder-item[data-pubid]').forEach(function(el){
-    el.addEventListener('click', function(){
-      openModal(el.dataset.pubid);
-    });
-  });
-}
-
-/* ============ Modal: Verlag bearbeiten ============ */
-function openModal(id){
-  modalId = id;
-  const p = publishers.find(function(x){ return x.id===id; });
-  if(!p) return;
-  document.getElementById('modalTitle').textContent = p.name;
-
-  const statusOptions = COLUMNS.map(function(c){
-    return '<option value="' + c.key + '"' + (c.key===p.status?' selected':'') + '>' + c.label + '</option>';
-  }).join('');
-  const priorityOptions = ['Hoch','Mittel','Niedrig'].map(function(pr){
-    return '<option value="' + pr + '"' + (pr===p.priority?' selected':'') + '>' + pr + '</option>';
-  }).join('');
-
-  const body = document.getElementById('modalBody');
-  body.innerHTML =
-    '<div class="field-group">' +
-      '<label>Status</label>' +
-      '<select id="modalStatus">' + statusOptions + '</select>' +
-    '</div>' +
-    '<div class="field-group">' +
-      '<label>Priorität</label>' +
-      '<select id="modalPriority">' + priorityOptions + '</select>' +
-    '</div>' +
-    '<div class="field-group">' +
-      '<label>Notiz</label>' +
-      '<textarea id="modalNote">' + (p.note||'') + '</textarea>' +
-    '</div>' +
-    '<div class="field-group">' +
-      '<label>Todo-Liste</label>' +
-      '<div id="modalTodos"></div>' +
-      '<div class="add-todo-row">' +
-        '<input type="text" id="newTodoText" placeholder="Neues Todo…">' +
-        '<input type="date" id="newTodoDue">' +
-        '<button id="addTodoBtn">+ Hinzufügen</button>' +
-      '</div>' +
-    '</div>' +
-    '<div class="field-group">' +
-      '<label>Historie / letzter Kontakt</label>' +
-      '<div id="modalHistory"></div>' +
-    '</div>' +
-    '<div class="modal-footer-actions">' +
-      '<button class="btn-delete" id="deletePubBtn">🗑 Verlag löschen</button>' +
-    '</div>';
-
-  renderModalTodos(p);
-  renderModalHistory(p);
-
-  document.getElementById('modalStatus').addEventListener('change', function(e){
-    const newStatus = e.target.value;
-    const newHistory = historyArr(p).concat([{date:todayStr(), text:'Status geändert zu „' + STATUS_LABEL[newStatus] + '“'}]);
-    fbUpdate(p.id, {status: newStatus, history: newHistory});
-  });
-  document.getElementById('modalPriority').addEventListener('change', function(e){
-    fbUpdate(p.id, {priority: e.target.value});
-  });
-  document.getElementById('modalNote').addEventListener('input', function(e){
-    fbUpdate(p.id, {note: e.target.value});
-  });
-  document.getElementById('addTodoBtn').addEventListener('click', function(){
-    const textEl = document.getElementById('newTodoText');
-    const dueEl = document.getElementById('newTodoDue');
-    const text = textEl.value.trim();
-    const due = dueEl.value || todayStr();
-    if(!text) return;
-    const newTodo = {id: Date.now(), text: text, due: due, done:false};
-    const newTodos = todosArr(p).concat([newTodo]);
-    fbSetTodos(p.id, newTodos);
-    textEl.value='';
-    dueEl.value='';
-  });
-  document.getElementById('deletePubBtn').addEventListener('click', function(){
-    fbDelete(p.id);
-    closeModal();
-  });
-
-  document.getElementById('overlay').classList.add('show');
-}
-
-function renderModalTodos(p){
-  const el = document.getElementById('modalTodos');
-  const todos = todosArr(p);
-  if(todos.length===0){
-    el.innerHTML = '<div class="empty-note">Keine Todos vorhanden.</div>';
-    return;
+  /* ================= Firebase Anbindung ================= */
+  function setSyncStatus(status){
+    var dot = document.getElementById("syncDot");
+    var text = document.getElementById("syncText");
+    dot.className = "sync-dot " + status;
+    if(status === "connected") text.textContent = "Verbunden (Live-Sync)";
+    else if(status === "connecting") text.textContent = "Verbinde...";
+    else text.textContent = "Offline (lokaler Modus)";
   }
-  el.innerHTML = todos.map(function(t, idx){
-    const st = dueStatus(t.due);
-    const label = t.done ? 'erledigt' : (st==='overdue'?'überfällig':(st==='soon'?'bald fällig':'geplant'));
-    const cls = t.done ? 'future' : st;
-    return (
-      '<div class="todo-row">' +
-        '<input type="checkbox" data-idx="' + idx + '" ' + (t.done?'checked':'') + '>' +
-        '<span class="todo-text ' + (t.done?'done':'') + '">' + t.text + '</span>' +
-        '<input type="date" class="todo-due ' + cls + '" data-idx="' + idx + '" value="' + (t.due||'') + '">' +
-        '<button class="todo-del" data-idx="' + idx + '" title="Löschen">✕</button>' +
-      '</div>'
-    );
-  }).join('');
 
-  el.querySelectorAll('input[type="checkbox"]').forEach(function(cb){
-    cb.addEventListener('change', function(e){
-      const idx = Number(e.target.dataset.idx);
-      const newTodos = todosArr(p).map(function(t,i){
-        return i===idx ? Object.assign({}, t, {done:e.target.checked}) : t;
-      });
-      fbSetTodos(p.id, newTodos);
-    });
-  });
-  el.querySelectorAll('input[type="date"].todo-due').forEach(function(inp){
-    inp.addEventListener('change', function(e){
-      const idx = Number(e.target.dataset.idx);
-      const newTodos = todosArr(p).map(function(t,i){
-        return i===idx ? Object.assign({}, t, {due:e.target.value}) : t;
-      });
-      fbSetTodos(p.id, newTodos);
-    });
-  });
-  el.querySelectorAll('.todo-del').forEach(function(btn){
-    btn.addEventListener('click', function(e){
-      const idx = Number(e.target.dataset.idx);
-      const newTodos = todosArr(p).filter(function(t,i){ return i!==idx; });
-      fbSetTodos(p.id, newTodos);
-    });
-  });
-}
-
-function renderModalHistory(p){
-  const el = document.getElementById('modalHistory');
-  const hist = historyArr(p);
-  if(hist.length===0){
-    el.innerHTML = '<div class="empty-note">Noch kein Kontaktverlauf erfasst.</div>';
-    return;
+  function fallbackLocal(){
+    if(Object.keys(state.verlage).length === 0){
+      state.verlage = buildDemoData();
+      renderApp();
+    }
   }
-  el.innerHTML = hist.slice().reverse().map(function(h){
-    const dateLabel = (h.date && h.date.includes('-')) ? fmtDate(h.date) : (h.date||'');
-    return '<div class="history-item"><span class="history-date">' + dateLabel + '</span>' + h.text + '</div>';
-  }).join('');
-}
 
-function closeModal(){
-  modalId = null;
-  document.getElementById('overlay').classList.remove('show');
-}
-
-/* ============ Neuer Verlag ============ */
-function openNewPublisherModal(){
-  document.getElementById('modalTitle').textContent = 'Neuer Verlag';
-  const body = document.getElementById('modalBody');
-
-  const statusOptions = COLUMNS.map(function(c){
-    return '<option value="' + c.key + '">' + c.label + '</option>';
-  }).join('');
-
-  body.innerHTML =
-    '<div class="field-group">' +
-      '<label>Name des Verlags</label>' +
-      '<input type="text" id="newPubName" placeholder="z.B. Musterstadt Verlag GmbH">' +
-    '</div>' +
-    '<div class="field-group">' +
-      '<label>Status</label>' +
-      '<select id="newPubStatus">' + statusOptions + '</select>' +
-    '</div>' +
-    '<div class="field-group">' +
-      '<label>Priorität</label>' +
-      '<select id="newPubPriority">' +
-        '<option value="Hoch">Hoch</option>' +
-        '<option value="Mittel" selected>Mittel</option>' +
-        '<option value="Niedrig">Niedrig</option>' +
-      '</select>' +
-    '</div>' +
-    '<div class="field-group">' +
-      '<label>Notiz</label>' +
-      '<textarea id="newPubNote" placeholder="Optionale Notiz…"></textarea>' +
-    '</div>' +
-    '<div class="modal-footer-actions">' +
-      '<button id="createPubBtn" style="background:var(--blue);color:#fff;border:none;border-radius:8px;padding:9px 16px;font-size:.88rem;font-weight:700;cursor:pointer;">✓ Verlag anlegen</button>' +
-    '</div>';
-
-  document.getElementById('createPubBtn').addEventListener('click', function(){
-    const name = document.getElementById('newPubName').value.trim();
-    if(!name){
-      document.getElementById('newPubName').focus();
+  function initFirebase(){
+    if(typeof firebase === "undefined"){
+      console.warn("Firebase SDK nicht verfügbar - lokaler Fallback aktiv.");
+      setSyncStatus("offline");
+      fallbackLocal();
       return;
     }
-    const data = {
-      name: name,
-      status: document.getElementById('newPubStatus').value,
-      priority: document.getElementById('newPubPriority').value,
-      note: document.getElementById('newPubNote').value.trim(),
-      history: [{date: todayStr(), text: 'Verlag angelegt'}],
-      todos: []
-    };
-    fbCreate(data);
-    closeModal();
+    try {
+      firebase.initializeApp(firebaseConfig);
+      var db = firebase.database();
+      dbRef = db.ref("verlage");
+      usingFirebase = true;
+
+      db.ref(".info/connected").on("value", function(snap){
+        if(snap.val() === true){ setSyncStatus("connected"); }
+        else { setSyncStatus("connecting"); }
+      });
+
+      dbRef.once("value").then(function(snap){
+        if(!snap.exists()){
+          var demo = buildDemoData();
+          dbRef.set(demo);
+        }
+      }).catch(function(err){
+        console.error("Firebase Lesefehler:", err);
+        setSyncStatus("offline");
+        fallbackLocal();
+      });
+
+      dbRef.on("value", function(snap){
+        state.verlage = snap.val() || {};
+        renderApp();
+      }, function(err){
+        console.error("Firebase Listener-Fehler:", err);
+        setSyncStatus("offline");
+        fallbackLocal();
+      });
+    } catch(err){
+      console.error("Firebase Initialisierung fehlgeschlagen:", err);
+      setSyncStatus("offline");
+      fallbackLocal();
+    }
+    setTimeout(function(){ fallbackLocal(); }, 4000);
+  }
+
+  function persist(id){
+    clearTimeout(saveTimers[id]);
+    saveTimers[id] = setTimeout(function(){
+      if(usingFirebase && dbRef && state.verlage[id]){
+        dbRef.child(id).set(state.verlage[id]).catch(function(err){
+          console.error("Speicherfehler:", err);
+          setSyncStatus("offline");
+        });
+      }
+    }, 400);
+  }
+
+  function removeVerlagRemote(id){
+    if(usingFirebase && dbRef){
+      dbRef.child(id).remove().catch(function(err){ console.error(err); });
+    }
+  }
+
+  /* ================= Render: KPIs ================= */
+  function renderKPIs(){
+    var el = document.getElementById("kpiRow");
+    var all = Object.keys(state.verlage).map(function(id){ return state.verlage[id]; });
+    var total = all.length;
+    var counts = {pipeline:0, austausch:0, test:0, automatisiert:0};
+    var overdueCount = 0;
+    all.forEach(function(v){
+      if(counts[v.status] !== undefined) counts[v.status]++;
+      var ampel = getVerlagAmpel(v);
+      if(ampel.level === "red") overdueCount++;
+    });
+    var pct = Math.min(Math.round((counts.automatisiert / TARGET_TOTAL) * 100), 100);
+    el.innerHTML =
+      '<div class="kpi-tile">' +
+        '<div class="kpi-value">' + counts.automatisiert + ' / ' + TARGET_TOTAL + '</div>' +
+        '<div class="kpi-label">Verlage automatisiert</div>' +
+        '<div class="progress-bar-outer"><div class="progress-bar-inner" style="width:' + pct + '%"></div></div>' +
+      '</div>' +
+      '<div class="kpi-tile"><div class="kpi-value">' + total + '</div><div class="kpi-label">Verlage erfasst gesamt</div></div>' +
+      '<div class="kpi-tile"><div class="kpi-value">' + counts.pipeline + '</div><div class="kpi-label">in Pipeline</div></div>' +
+      '<div class="kpi-tile"><div class="kpi-value">' + counts.austausch + '</div><div class="kpi-label">im Austausch</div></div>' +
+      '<div class="kpi-tile"><div class="kpi-value">' + counts.test + '</div><div class="kpi-label">im Test</div></div>' +
+      '<div class="kpi-tile ' + (overdueCount > 0 ? "kpi-alert" : "") + '"><div class="kpi-value">' + overdueCount + '</div><div class="kpi-label">überfällige Kontakte</div></div>';
+  }
+
+  /* ================= Render: Kanban Board ================= */
+  function passesFilter(v){
+    var s = state.filter.search.trim().toLowerCase();
+    if(s){
+      var hay = ((v.name||"") + " " + (v.kontaktVerlag||"") + " " + (v.zustaendigIntern||"")).toLowerCase();
+      if(hay.indexOf(s) === -1) return false;
+    }
+    if(state.filter.status !== "all" && v.status !== state.filter.status) return false;
+    if(state.filter.prioritaet !== "all" && v.prioritaet !== state.filter.prioritaet) return false;
+    return true;
+  }
+
+  function renderCard(id, v){
+    var ampel = getVerlagAmpel(v);
+    var lastContactDisplay;
+    if(v.websitesUnabhaengig && v.websites && Object.keys(v.websites).length > 0){
+      lastContactDisplay = "siehe Websites";
+    } else {
+      lastContactDisplay = formatDate(v.letzterKontakt);
+    }
+    var statuses = ["pipeline","austausch","test","automatisiert"];
+    var options = statuses.map(function(st){
+      return '<option value="' + st + '" ' + (v.status === st ? "selected" : "") + '>' + STATUS_LABELS[st] + '</option>';
+    }).join("");
+
+    return '' +
+      '<div class="kanban-card" draggable="true" data-id="' + id + '">' +
+        '<div class="card-top">' +
+          '<span class="prio-badge prio-' + v.prioritaet + '">' + (PRIO_LABELS[v.prioritaet] || "–") + '</span>' +
+          '<span class="ampel-dot ampel-' + ampel.level + '" title="' + esc(ampel.text) + '"></span>' +
+        '</div>' +
+        '<h3 class="card-title">' + esc(v.name) + '</h3>' +
+        '<div class="card-meta">' +
+          '<div><span class="meta-label">Kontakt Verlag:</span> ' + esc(v.kontaktVerlag || "–") + '</div>' +
+          '<div><span class="meta-label">Zuständig intern:</span> ' + esc(v.zustaendigIntern || "–") + '</div>' +
+          '<div><span class="meta-label">Letzter Kontakt:</span> ' + lastContactDisplay + '</div>' +
+        '</div>' +
+        '<div class="card-footer no-card-click">' +
+          '<select class="status-select no-card-click">' + options + '</select>' +
+        '</div>' +
+      '</div>';
+  }
+
+  function renderBoard(){
+    var statuses = ["pipeline","austausch","test","automatisiert"];
+    statuses.forEach(function(st){
+      var listEl = document.querySelector('.card-list[data-status="' + st + '"]');
+      var countEl = document.querySelector('.column-count[data-status="' + st + '"]');
+      if(!listEl) return;
+      var entries = Object.keys(state.verlage).filter(function(id){
+        var v = state.verlage[id];
+        return v.status === st && passesFilter(v);
+      });
+      if(countEl) countEl.textContent = entries.length;
+      if(entries.length === 0){
+        listEl.innerHTML = '<p class="empty-hint">Keine Verlage in dieser Spalte.</p>';
+        return;
+      }
+      listEl.innerHTML = entries.map(function(id){ return renderCard(id, state.verlage[id]); }).join("");
+    });
+  }
+
+  function changeStatus(id, newStatus){
+    var v = state.verlage[id];
+    if(!v) return;
+    v.status = newStatus;
+    renderApp();
+    persist(id);
+  }
+
+  /* ================= Render: Modal ================= */
+  function renderWebsite(wid, w, v){
+    var kanaeleHtml = Object.keys(w.kanaele || {}).map(function(kid){
+      return renderKanal(wid, kid, w.kanaele[kid]);
+    }).join("");
+    if(!kanaeleHtml) kanaeleHtml = '<p class="empty-hint">Keine Kanäle erfasst.</p>';
+
+    var dateField = "";
+    if(v.websitesUnabhaengig){
+      dateField = '<div class="field-row small"><label>Letzter Kontakt (diese Website)</label>' +
+        '<input type="date" data-field="website-date" data-wid="' + wid + '" value="' + (w.letzterKontakt || "") + '"></div>';
+    }
+
+    return '' +
+      '<div class="website-card">' +
+        '<div class="website-header">' +
+          '<input type="text" class="website-name-input" data-field="website-name" data-wid="' + wid + '" value="' + esc(w.name) + '">' +
+          '<button data-action="remove-website" data-wid="' + wid + '" class="btn-icon" title="Website entfernen">🗑</button>' +
+        '</div>' +
+        dateField +
+        '<div class="kanal-list">' +
+          '<div class="section-header small"><span>Kanäle</span><button data-action="add-kanal" data-wid="' + wid + '" class="btn-small">+ Kanal</button></div>' +
+          kanaeleHtml +
+        '</div>' +
+      '</div>';
+  }
+
+  function renderKanal(wid, kid, k){
+    var typen = ["Mailing","Display","Social","Kombi"];
+    var typOptions = typen.map(function(t){
+      return '<option value="' + t + '" ' + (k.typ === t ? "selected" : "") + '>' + t + '</option>';
+    }).join("");
+    return '' +
+      '<div class="kanal-row">' +
+        '<select data-field="kanal-typ" data-wid="' + wid + '" data-kid="' + kid + '">' + typOptions + '</select>' +
+        '<select data-field="kanal-format" data-wid="' + wid + '" data-kid="' + kid + '">' +
+          '<option value="XLS" ' + (k.format === "XLS" ? "selected" : "") + '>XLS</option>' +
+          '<option value="CSV" ' + (k.format === "CSV" ? "selected" : "") + '>CSV</option>' +
+        '</select>' +
+        '<input type="text" data-field="kanal-link" data-wid="' + wid + '" data-kid="' + kid + '" value="' + esc(k.beispielLink || "") + '" placeholder="Link zur Beispiel-Reporting-Datei">' +
+        '<button data-action="remove-kanal" data-wid="' + wid + '" data-kid="' + kid + '" class="btn-icon" title="Kanal entfernen">🗑</button>' +
+      '</div>';
+  }
+
+  function renderModalHtml(id, v){
+    var websitesHtml = Object.keys(v.websites || {}).map(function(wid){
+      return renderWebsite(wid, v.websites[wid], v);
+    }).join("");
+    if(!websitesHtml) websitesHtml = '<p class="empty-hint">Noch keine Website erfasst.</p>';
+
+    var verlagDateRow = "";
+    if(!v.websitesUnabhaengig){
+      verlagDateRow = '<div class="field-row"><label>Letzter Kontakt (verlagsweit)</label>' +
+        '<input type="date" data-field="letzterKontakt" value="' + (v.letzterKontakt || "") + '"></div>';
+    }
+
+    var todosSorted = (v.todos || []).slice().sort(function(a,b){
+      return (a.faellig || "9999").localeCompare(b.faellig || "9999");
+    });
+    var todosHtml = todosSorted.map(function(t){
+      return '' +
+        '<div class="todo-item ' + (t.erledigt ? "done" : "") + '">' +
+          '<input type="checkbox" data-action="toggle-todo" data-tid="' + t.id + '" ' + (t.erledigt ? "checked" : "") + '>' +
+          '<span class="todo-text">' + esc(t.text) + '</span>' +
+          '<span class="todo-date">' + (t.faellig ? formatDate(t.faellig) : "") + '</span>' +
+          '<button data-action="delete-todo" data-tid="' + t.id + '" class="btn-icon">🗑</button>' +
+        '</div>';
+    }).join("");
+    if(!todosHtml) todosHtml = '<p class="empty-hint">Keine Todos erfasst.</p>';
+
+    return '' +
+      '<div class="modal-panel">' +
+        '<div class="modal-header">' +
+          '<input type="text" class="verlag-name-input" data-field="name" value="' + esc(v.name) + '">' +
+          '<button data-action="close-modal" class="btn-icon close-btn">✕</button>' +
+        '</div>' +
+        '<div class="modal-body">' +
+          '<div class="field-grid">' +
+            '<div class="field-row"><label>Kontaktperson beim Verlag</label><input type="text" data-field="kontaktVerlag" value="' + esc(v.kontaktVerlag || "") + '"></div>' +
+            '<div class="field-row"><label>Zuständige Person bei uns</label><input type="text" data-field="zustaendigIntern" value="' + esc(v.zustaendigIntern || "") + '"></div>' +
+            '<div class="field-row"><label>Priorität</label>' +
+              '<select data-field="prioritaet">' +
+                '<option value="hoch" ' + (v.prioritaet === "hoch" ? "selected" : "") + '>Hoch</option>' +
+                '<option value="mittel" ' + (v.prioritaet === "mittel" ? "selected" : "") + '>Mittel</option>' +
+                '<option value="niedrig" ' + (v.prioritaet === "niedrig" ? "selected" : "") + '>Niedrig</option>' +
+              '</select>' +
+            '</div>' +
+            '<div class="field-row"><label>Status</label>' +
+              '<select data-field="status">' +
+                '<option value="pipeline" ' + (v.status === "pipeline" ? "selected" : "") + '>Pipeline</option>' +
+                '<option value="austausch" ' + (v.status === "austausch" ? "selected" : "") + '>Austausch</option>' +
+                '<option value="test" ' + (v.status === "test" ? "selected" : "") + '>Test</option>' +
+                '<option value="automatisiert" ' + (v.status === "automatisiert" ? "selected" : "") + '>Automatisiert</option>' +
+              '</select>' +
+            '</div>' +
+          '</div>' +
+
+          '<div class="section">' +
+            '<div class="section-header"><h3>Websites</h3><button data-action="add-website" class="btn-small">+ Website</button></div>' +
+            '<div class="override-toggle"><label><input type="checkbox" data-action="toggle-override" ' + (v.websitesUnabhaengig ? "checked" : "") + '> Websites unabhängig verwalten (individueller letzter Kontakt je Website)</label></div>' +
+            verlagDateRow +
+            '<div class="website-list">' + websitesHtml + '</div>' +
+          '</div>' +
+
+          '<div class="section">' +
+            '<h3>Notizen</h3>' +
+            '<textarea data-field="notizen" rows="4" placeholder="Notizen zum Verlag...">' + esc(v.notizen || "") + '</textarea>' +
+          '</div>' +
+
+          '<div class="section">' +
+            '<h3>Todos</h3>' +
+            '<div class="todo-list">' + todosHtml + '</div>' +
+            '<div class="add-todo-row">' +
+              '<input type="text" id="newTodoText" placeholder="Neues Todo...">' +
+              '<input type="date" id="newTodoDate">' +
+              '<button data-action="add-todo" class="btn-small">+ Hinzufügen</button>' +
+            '</div>' +
+          '</div>' +
+
+          '<div class="modal-footer">' +
+            '<button data-action="delete-verlag" class="btn-danger">Verlag löschen</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+  }
+
+  function isTypingField(overlay){
+    var el = document.activeElement;
+    if(!overlay.contains(el)) return false;
+    if(el.tagName === "TEXTAREA") return true;
+    if(el.tagName === "INPUT" && el.type === "text") return true;
+    return false;
+  }
+
+  function renderModal(force){
+    var overlay = document.getElementById("modalOverlay");
+    if(!state.selectedId || !state.verlage[state.selectedId]){
+      overlay.classList.add("hidden");
+      overlay.innerHTML = "";
+      overlay.dataset.openId = "";
+      return;
+    }
+    if(!force && overlay.dataset.openId === state.selectedId && isTypingField(overlay)){
+      return;
+    }
+    overlay.dataset.openId = state.selectedId;
+    var v = state.verlage[state.selectedId];
+    overlay.innerHTML = renderModalHtml(state.selectedId, v);
+    overlay.classList.remove("hidden");
+  }
+
+  function openModal(id){
+    state.selectedId = id;
+    document.getElementById("modalOverlay").dataset.openId = "";
+    renderModal(true);
+  }
+  function closeModal(){
+    state.selectedId = null;
+    var overlay = document.getElementById("modalOverlay");
+    overlay.classList.add("hidden");
+    overlay.innerHTML = "";
+    overlay.dataset.openId = "";
+  }
+
+  /* ================= Render: Reminder Tab ================= */
+  function computeReminders(){
+    var overdue = [];
+    var soon = [];
+    Object.keys(state.verlage).forEach(function(id){
+      var v = state.verlage[id];
+      var contacts = getEffectiveContacts(v);
+      contacts.forEach(function(c){
+        var wd = c.date ? workdaysSince(c.date) : null;
+        var item = {verlagId:id, verlagName:v.name, label:c.label, date:c.date, isWebsite:c.isWebsite, wid:c.wid, workdays: wd};
+        if(wd === null || wd >= 3){
+          item.sortWd = (wd === null) ? 999 : wd;
+          overdue.push(item);
+        } else if(wd === 2){
+          item.sortWd = wd;
+          soon.push(item);
+        }
+      });
+    });
+    overdue.sort(function(a,b){ return b.sortWd - a.sortWd; });
+    soon.sort(function(a,b){ return b.sortWd - a.sortWd; });
+    return {overdue: overdue, soon: soon};
+  }
+
+  function computeOpenTodos(){
+    var list = [];
+    Object.keys(state.verlage).forEach(function(id){
+      var v = state.verlage[id];
+      (v.todos || []).forEach(function(t){
+        if(!t.erledigt){
+          list.push({id:t.id, text:t.text, faellig:t.faellig, verlagId:id, verlagName:v.name});
+        }
+      });
+    });
+    list.sort(function(a,b){ return (a.faellig || "9999").localeCompare(b.faellig || "9999"); });
+    return list;
+  }
+
+  function renderReminderItem(item){
+    var dateDisp = item.date ? formatDate(item.date) : "kein Datum erfasst";
+    var wdDisp = (item.workdays === null || item.workdays === undefined) ? "–" : item.workdays;
+    return '' +
+      '<div class="reminder-item">' +
+        '<div class="reminder-info">' +
+          '<strong>' + esc(item.verlagName) + '</strong>' + (item.isWebsite ? ' – ' + esc(item.label) : '') +
+          '<div class="reminder-sub">Letzter Kontakt: ' + dateDisp + ' · ' + wdDisp + ' Werktage</div>' +
+        '</div>' +
+        '<button class="btn-small" data-action="quick-contact" data-id="' + item.verlagId + '"' + (item.isWebsite ? ' data-wid="' + item.wid + '"' : '') + '>Heute kontaktiert</button>' +
+      '</div>';
+  }
+
+  function renderGlobalTodo(t){
+    var overdueTodo = t.faellig && t.faellig < todayISO();
+    return '' +
+      '<div class="todo-item ' + (overdueTodo ? "todo-overdue" : "") + '">' +
+        '<input type="checkbox" data-action="toggle-todo-global" data-id="' + t.verlagId + '" data-tid="' + t.id + '">' +
+        '<span class="todo-text">' + esc(t.text) + ' <em>(' + esc(t.verlagName) + ')</em></span>' +
+        '<span class="todo-date">' + (t.faellig ? formatDate(t.faellig) : "kein Datum") + '</span>' +
+      '</div>';
+  }
+
+  function renderReminder(){
+    var el = document.getElementById("reminderView");
+    var res = computeReminders();
+    var todos = computeOpenTodos();
+    var overdueHtml = res.overdue.length === 0
+      ? '<p class="empty-hint">Keine überfälligen Kontakte 🎉</p>'
+      : '<div class="reminder-list">' + res.overdue.map(renderReminderItem).join("") + '</div>';
+    var soonHtml = res.soon.length === 0
+      ? '<p class="empty-hint">Nichts aktuell bald fällig.</p>'
+      : '<div class="reminder-list">' + res.soon.map(renderReminderItem).join("") + '</div>';
+    var todosHtml = todos.length === 0
+      ? '<p class="empty-hint">Keine offenen Todos.</p>'
+      : '<div class="todo-list">' + todos.map(renderGlobalTodo).join("") + '</div>';
+
+    el.innerHTML =
+      '<div class="reminder-section"><h2>🔴 Überfällige Kontakte (≥ 3 Werktage ohne Kontakt)</h2>' + overdueHtml + '</div>' +
+      '<div class="reminder-section"><h2>🟡 Bald fällig (2 Werktage seit Kontakt)</h2>' + soonHtml + '</div>' +
+      '<div class="reminder-section"><h2>📝 Offene Todos</h2>' + todosHtml + '</div>';
+  }
+
+  /* ================= Master render ================= */
+  function renderApp(){
+    renderKPIs();
+    renderBoard();
+    if(state.currentTab === "reminder") renderReminder();
+    renderModal();
+  }
+
+  /* ================= Event Listener: Tabs, Toolbar ================= */
+  document.querySelectorAll(".tab-btn").forEach(function(btn){
+    btn.addEventListener("click", function(){
+      document.querySelectorAll(".tab-btn").forEach(function(b){ b.classList.remove("active"); });
+      btn.classList.add("active");
+      state.currentTab = btn.dataset.tab;
+      document.getElementById("kanbanView").classList.toggle("hidden", state.currentTab !== "kanban");
+      document.getElementById("reminderView").classList.toggle("hidden", state.currentTab !== "reminder");
+      document.getElementById("kanbanToolbar").classList.toggle("hidden", state.currentTab !== "kanban");
+      renderApp();
+    });
   });
 
-  document.getElementById('overlay').classList.add('show');
-}
+  document.getElementById("searchInput").addEventListener("input", function(e){
+    state.filter.search = e.target.value;
+    renderBoard();
+  });
+  document.getElementById("filterStatus").addEventListener("change", function(e){
+    state.filter.status = e.target.value;
+    renderBoard();
+  });
+  document.getElementById("filterPrio").addEventListener("change", function(e){
+    state.filter.prioritaet = e.target.value;
+    renderBoard();
+  });
 
-/* ============ Global render ============ */
-function renderAll(){
-  renderKPIs();
-  renderBoard();
-  renderReminders();
-}
+  document.getElementById("addVerlagBtn").addEventListener("click", function(){
+    document.getElementById("addVerlagForm").classList.remove("hidden");
+    document.getElementById("newVerlagName").focus();
+  });
+  document.getElementById("cancelAddVerlag").addEventListener("click", function(){
+    document.getElementById("addVerlagForm").classList.add("hidden");
+    document.getElementById("newVerlagName").value = "";
+  });
+  function submitNewVerlag(){
+    var nameInput = document.getElementById("newVerlagName");
+    var name = nameInput.value.trim();
+    if(!name) return;
+    var id = uid("v");
+    state.verlage[id] = {
+      name: name,
+      kontaktVerlag: "",
+      zustaendigIntern: "",
+      prioritaet: "mittel",
+      status: "pipeline",
+      letzterKontakt: todayISO(),
+      websitesUnabhaengig: false,
+      notizen: "",
+      todos: [],
+      websites: {}
+    };
+    nameInput.value = "";
+    document.getElementById("addVerlagForm").classList.add("hidden");
+    renderApp();
+    persist(id);
+    openModal(id);
+  }
+  document.getElementById("confirmAddVerlag").addEventListener("click", submitNewVerlag);
+  document.getElementById("newVerlagName").addEventListener("keydown", function(e){
+    if(e.key === "Enter") submitNewVerlag();
+  });
 
-/* ============ Events ============ */
-document.getElementById('searchInput').addEventListener('input', function(e){
-  filters.search = e.target.value;
-  renderBoard();
-});
-document.getElementById('statusFilter').addEventListener('change', function(e){
-  filters.status = e.target.value;
-  renderBoard();
-});
-document.getElementById('priorityFilter').addEventListener('change', function(e){
-  filters.priority = e.target.value;
-  renderBoard();
-});
-document.getElementById('resetFilters').addEventListener('click', function(){
-  filters = {search:'', status:'all', priority:'all'};
-  document.getElementById('searchInput').value = '';
-  document.getElementById('statusFilter').value = 'all';
-  document.getElementById('priorityFilter').value = 'all';
-  renderBoard();
-});
-document.getElementById('addNewBtn').addEventListener('click', openNewPublisherModal);
+  /* ================= Event Listener: Kanban Board (Drag & Drop + Klicks) ================= */
+  var kanbanView = document.getElementById("kanbanView");
 
-document.getElementById('modalClose').addEventListener('click', closeModal);
-document.getElementById('overlay').addEventListener('click', function(e){
-  if(e.target.id==='overlay') closeModal();
-});
+  kanbanView.addEventListener("dragstart", function(e){
+    var card = e.target.closest(".kanban-card");
+    if(card){
+      state.draggingId = card.dataset.id;
+      e.dataTransfer.effectAllowed = "move";
+      card.classList.add("dragging");
+    }
+  });
+  kanbanView.addEventListener("dragend", function(e){
+    var card = e.target.closest(".kanban-card");
+    if(card) card.classList.remove("dragging");
+    state.draggingId = null;
+  });
+  kanbanView.addEventListener("dragover", function(e){
+    var list = e.target.closest(".card-list");
+    if(list){
+      e.preventDefault();
+      list.classList.add("drag-over");
+    }
+  });
+  kanbanView.addEventListener("dragleave", function(e){
+    var list = e.target.closest(".card-list");
+    if(list) list.classList.remove("drag-over");
+  });
+  kanbanView.addEventListener("drop", function(e){
+    var list = e.target.closest(".card-list");
+    if(list){
+      e.preventDefault();
+      list.classList.remove("drag-over");
+      if(state.draggingId){
+        changeStatus(state.draggingId, list.dataset.status);
+        state.draggingId = null;
+      }
+    }
+  });
+  kanbanView.addEventListener("change", function(e){
+    var select = e.target.closest(".status-select");
+    if(select){
+      var card = select.closest(".kanban-card");
+      changeStatus(card.dataset.id, select.value);
+    }
+  });
+  kanbanView.addEventListener("click", function(e){
+    if(e.target.closest(".no-card-click")) return;
+    var card = e.target.closest(".kanban-card");
+    if(card) openModal(card.dataset.id);
+  });
 
-document.getElementById('tabBoardBtn').addEventListener('click', function(){
-  activeTab='board';
-  document.getElementById('tabBoardBtn').classList.add('active');
-  document.getElementById('tabReminderBtn').classList.remove('active');
-  document.getElementById('viewBoard').style.display='block';
-  document.getElementById('viewReminder').style.display='none';
-});
-document.getElementById('tabReminderBtn').addEventListener('click', function(){
-  activeTab='reminder';
-  document.getElementById('tabReminderBtn').classList.add('active');
-  document.getElementById('tabBoardBtn').classList.remove('active');
-  document.getElementById('viewBoard').style.display='none';
-  document.getElementById('viewReminder').style.display='block';
-  renderReminders();
-});
+  /* ================= Event Listener: Modal ================= */
+  var modalOverlay = document.getElementById("modalOverlay");
 
-/* ============ Init ============ */
-renderAll();
+  modalOverlay.addEventListener("click", function(e){
+    if(e.target.id === "modalOverlay"){
+      closeModal();
+      return;
+    }
+    var btn = e.target.closest("[data-action]");
+    if(!btn) return;
+    var action = btn.dataset.action;
+
+    if(action === "close-modal"){ closeModal(); return; }
+
+    var id = state.selectedId;
+    if(!id || !state.verlage[id]) return;
+    var v = state.verlage[id];
+    var wid = btn.dataset.wid;
+    var kid = btn.dataset.kid;
+    var tid = btn.dataset.tid;
+
+    if(action === "delete-verlag"){
+      delete state.verlage[id];
+      state.selectedId = null;
+      removeVerlagRemote(id);
+      renderApp();
+      return;
+    } else if(action === "toggle-override"){
+      v.websitesUnabhaengig = !v.websitesUnabhaengig;
+    } else if(action === "add-website"){
+      var newWid = uid("w");
+      if(!v.websites) v.websites = {};
+      v.websites[newWid] = {name: "Neue Website", letzterKontakt: todayISO(), kanaele: {}};
+    } else if(action === "remove-website"){
+      if(v.websites) delete v.websites[wid];
+    } else if(action === "add-kanal"){
+      if(!v.websites || !v.websites[wid]) return;
+      if(!v.websites[wid].kanaele) v.websites[wid].kanaele = {};
+      var newKid = uid("k");
+      v.websites[wid].kanaele[newKid] = {typ: "Mailing", format: "XLS", beispielLink: ""};
+    } else if(action === "remove-kanal"){
+      if(v.websites && v.websites[wid] && v.websites[wid].kanaele) delete v.websites[wid].kanaele[kid];
+    } else if(action === "toggle-todo"){
+      var t1 = (v.todos || []).find(function(t){ return t.id === tid; });
+      if(t1) t1.erledigt = !t1.erledigt;
+    } else if(action === "delete-todo"){
+      v.todos = (v.todos || []).filter(function(t){ return t.id !== tid; });
+    } else if(action === "add-todo"){
+      var textInput = document.getElementById("newTodoText");
+      var dateInput = document.getElementById("newTodoDate");
+      var text = textInput.value.trim();
+      if(!text) return;
+      if(!v.todos) v.todos = [];
+      v.todos.push({id: uid("t"), text: text, faellig: dateInput.value || "", erledigt:false});
+    } else {
+      return;
+    }
+
+    renderApp();
+    persist(id);
+  });
+
+  modalOverlay.addEventListener("input", function(e){
+    var field = e.target.dataset.field;
+    if(!field) return;
+    var id = state.selectedId;
+    if(!id || !state.verlage[id]) return;
+    var v = state.verlage[id];
+    var wid = e.target.dataset.wid;
+    var kid = e.target.dataset.kid;
+
+    if(field === "name") v.name = e.target.value;
+    else if(field === "kontaktVerlag") v.kontaktVerlag = e.target.value;
+    else if(field === "zustaendigIntern") v.zustaendigIntern = e.target.value;
+    else if(field === "notizen") v.notizen = e.target.value;
+    else if(field === "website-name"){ if(v.websites && v.websites[wid]) v.websites[wid].name = e.target.value; }
+    else if(field === "kanal-link"){ if(v.websites && v.websites[wid] && v.websites[wid].kanaele[kid]) v.websites[wid].kanaele[kid].beispielLink = e.target.value; }
+    else return;
+
+    renderApp();
+    persist(id);
+  });
+
+  modalOverlay.addEventListener("change", function(e){
+    var field = e.target.dataset.field;
+    if(!field) return;
+    var id = state.selectedId;
+    if(!id || !state.verlage[id]) return;
+    var v = state.verlage[id];
+    var wid = e.target.dataset.wid;
+    var kid = e.target.dataset.kid;
+
+    if(field === "prioritaet") v.prioritaet = e.target.value;
+    else if(field === "status") v.status = e.target.value;
+    else if(field === "letzterKontakt") v.letzterKontakt = e.target.value;
+    else if(field === "website-date"){ if(v.websites && v.websites[wid]) v.websites[wid].letzterKontakt = e.target.value; }
+    else if(field === "kanal-typ"){ if(v.websites && v.websites[wid] && v.websites[wid].kanaele[kid]) v.websites[wid].kanaele[kid].typ = e.target.value; }
+    else if(field === "kanal-format"){ if(v.websites && v.websites[wid] && v.websites[wid].kanaele[kid]) v.websites[wid].kanaele[kid].format = e.target.value; }
+    else return;
+
+    renderApp();
+    persist(id);
+  });
+
+  modalOverlay.addEventListener("focusout", function(e){
+    if(e.target.tagName === "TEXTAREA" || (e.target.tagName === "INPUT" && e.target.type === "text")){
+      setTimeout(function(){ if(state.selectedId) renderModal(true); }, 50);
+    }
+  });
+
+  document.addEventListener("keydown", function(e){
+    if(e.key === "Escape" && state.selectedId) closeModal();
+  });
+
+  /* ================= Event Listener: Reminder Tab ================= */
+  document.getElementById("reminderView").addEventListener("click", function(e){
+    var btn = e.target.closest("[data-action]");
+    if(!btn) return;
+    var action = btn.dataset.action;
+    var id = btn.dataset.id;
+    var v = state.verlage[id];
+    if(!v) return;
+
+    if(action === "quick-contact"){
+      var wid = btn.dataset.wid;
+      if(wid && v.websites && v.websites[wid]){
+        v.websites[wid].letzterKontakt = todayISO();
+      } else {
+        v.letzterKontakt = todayISO();
+      }
+      renderApp();
+      persist(id);
+    } else if(action === "toggle-todo-global"){
+      var tid = btn.dataset.tid;
+      var t = (v.todos || []).find(function(tt){ return tt.id === tid; });
+      if(t) t.erledigt = true;
+      renderApp();
+      persist(id);
+    }
+  });
+
+  /* ================= Start ================= */
+  setSyncStatus("connecting");
+  renderApp();
+  initFirebase();
+
+})();
 </script>
 </body>
 </html>
