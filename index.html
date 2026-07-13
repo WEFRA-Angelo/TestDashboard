@@ -1082,6 +1082,14 @@ main#mainContent{padding:0 20px 30px 20px;}
       '</div>';
   }
 
+  function renderApp(){
+    renderKPIs();
+    renderBoard();
+    if(state.currentTab === "reminder") renderReminder();
+    if(state.currentTab === "detail") renderDetail();
+    renderModal();
+  }
+
   /* ================= Event Listener: Tabs, Toolbar ================= */
   document.querySelectorAll(".tab-btn").forEach(function(btn){
     btn.addEventListener("click", function(){
@@ -1090,6 +1098,7 @@ main#mainContent{padding:0 20px 30px 20px;}
       state.currentTab = btn.dataset.tab;
       document.getElementById("kanbanView").classList.toggle("hidden", state.currentTab !== "kanban");
       document.getElementById("reminderView").classList.toggle("hidden", state.currentTab !== "reminder");
+      document.getElementById("detailView").classList.toggle("hidden", state.currentTab !== "detail");
       document.getElementById("kanbanToolbar").classList.toggle("hidden", state.currentTab !== "kanban");
       renderApp();
     });
