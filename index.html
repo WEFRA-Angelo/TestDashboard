@@ -1031,13 +1031,52 @@ main#mainContent{padding:0 20px 30px 20px;}
     return '' +
       '<div class="detail-website-block">' +
         '<div class="detail-website-title">🌐 ' + esc(w.name) + (w.letzterKontakt ? ' <span style="color:var(--muted);font-weight:400;font-size:0.78rem;">· letzter Kontakt: ' + formatDate(w.letzterKontakt) + '</span>' : '') + '</div>' +
+        '<div class="detail-kanal-badges">' + kanaeleHtml + '</div>' +
+      '</div>';
+  }
 
-  /* ================= Master render ================= */
-  function renderApp(){
-    renderKPIs();
-    renderBoard();
-    if(state.currentTab === "reminder") renderReminder();
-    renderModal();
+  function renderDetailRow(id){
+    var v = state.verlage[id];
+    var expanded = !!state.detailExpanded[id];
+    var statuses = ["pipeline","austausch","test","automatisiert"];
+    var websites = Object.keys(v.websites || {}).map(function(wid){ return v.websites[wid]; });
+    var expandRow = expanded ? (
+      '<tr class="detail-expand-row" data-id="' + id + '">' +
+        '<td colspan="' + DETAIL_COLUMNS.length + '">' +
+          (websites.length === 0 ? '<p class="empty-hint">Keine Websites erfasst.</p>' : websites.map(renderDetailWebsiteBlock).join("")) +
+        '</td>' +
+      '</tr>'
+    ) : "";
+    return '' +
+      '<tr class="verlag-row" data-id="' + id + '">' +
+        '<td><span class="expand-arrow ' + (expanded ? "open" : "") + '">▶</span>' + esc(v.name) + '</td>' +
+        '<td><span class="prio-badge prio-' + v.prioritaet + '">' + (PRIO_LABELS[v.prioritaet] || "–") + '</span></td>' +
+        '<td>' + (v.wichtigkeitProzent !== undefined && v.wichtigkeitProzent !== null && v.wichtigkeitProzent !== "" ? Number(v.wichtigkeitProzent).toFixed(2) + " %" : "–") + '</td>' +
+        '<td><span class="status-badge status-' + v.status + '">' + (STATUS_LABELS[v.status] || "–") + '</span></td>' +
+        '<td>' + esc(v.kontaktVerlag || "–") + '</td>' +
+        '<td>' + websiteCount(v) + '</td>' +
+        '<td>' + formatDate(getOldestContactDate(v)) + '</td>' +
+      '</tr>' + expandRow;
+  }
+
+  function renderDetail(){
+    var el = document.getElementById("detailView");
+    var ids = detailSortIds(Object.keys(state.verlage));
+    var headHtml = DETAIL_COLUMNS.map(function(col){
+      var sorted = state.detailSort.key === col.key;
+      var arrow = sorted ? (state.detailSort.dir === "asc" ? " ▲" : " ▼") : "";
+      return '<th class="' + (sorted ? "sorted" : "") + '" data-key="' + col.key + '">' + col.label + arrow + '</th>';
+    }).join("");
+    var bodyHtml = ids.length === 0
+      ? '<tr><td colspan="' + DETAIL_COLUMNS.length + '" class="empty-hint">Keine Verlage erfasst.</td></tr>'
+      : ids.map(renderDetailRow).join("");
+    el.innerHTML =
+      '<div class="detail-wrap">' +
+        '<table class="detail-table">' +
+          '<thead><tr>' + headHtml + '</tr></thead>' +
+          '<tbody>' + bodyHtml + '</tbody>' +
+        '</table>' +
+      '</div>';
   }
 
   /* ================= Event Listener: Tabs, Toolbar ================= */
