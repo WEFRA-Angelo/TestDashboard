@@ -55,6 +55,8 @@
   #searchInput{flex:1;min-width:180px;}
   #addVerlagBtn{background:var(--accent);color:#fff;border:none;padding:9px 16px;border-radius:8px;cursor:pointer;font-weight:600;font-size:0.9rem;}
   #addVerlagBtn:hover{background:var(--accent-dark);}
+  #resetWebsitesBtn{background:#eef1f8;color:var(--text);border:1px solid var(--border);padding:9px 16px;border-radius:8px;cursor:pointer;font-weight:600;font-size:0.9rem;}
+  #resetWebsitesBtn:hover{background:#e2e6f2;}
   .add-form{background:#fff;margin:0 20px 12px 20px;padding:12px;border-radius:10px;display:flex;gap:8px;flex-wrap:wrap;box-shadow:var(--shadow);}
   .add-form input{flex:1;min-width:180px;padding:8px 10px;border-radius:8px;border:1px solid var(--border);}
   .add-form button{padding:8px 14px;border-radius:8px;border:none;cursor:pointer;font-weight:600;}
@@ -212,7 +214,7 @@ main#mainContent{padding:0 20px 30px 20px;}
     <option value="niedrig">Niedrig</option>
   </select>
   <button id="addVerlagBtn">+ Neuer Verlag</button>
-  <button id="resetWebsitesBtn">🧹 Alle Websites zurücksetzen</button>
+  <button id="resetWebsitesBtn">🔄 Websites aus Stammdaten wiederherstellen</button>
 </div>
 <div class="add-form hidden" id="addVerlagForm">
   <input type="text" id="newVerlagName" placeholder="Name des neuen Verlags...">
@@ -308,7 +310,7 @@ main#mainContent{padding:0 20px 30px 20px;}
     });
   }
   function formatDate(iso){
-    if(!iso) return "–";
+    if(!iso || iso === "9999-99-99" || iso === "0000-00-00") return "–";
     var parts = iso.split("-");
     if(parts.length !== 3) return iso;
     return parts[2] + "." + parts[1] + "." + parts[0];
@@ -528,14 +530,8 @@ main#mainContent{padding:0 20px 30px 20px;}
   function buildSeedVerlage(){
     var out = {};
     SEED_RAW.forEach(function(entry){
-      var name = entry[0], wichtigkeit = entry[1], ranking = entry[2], websiteEntries = entry[3] || [];
+      var name = entry[0], wichtigkeit = entry[1], ranking = entry[2];
       var vid = uid("v");
-      var websitesObj = {};
-      websiteEntries.forEach(function(wEntry){
-        var wName = wEntry[0];
-        var wid = uid("w");
-        websitesObj[wid] = {name: wName, letzterKontakt: "", kanaele: {}};
-      });
       out[vid] = {
         name: name,
         kontaktVerlag: "",
@@ -546,7 +542,7 @@ main#mainContent{padding:0 20px 30px 20px;}
         websitesUnabhaengig: false,
         notizen: "",
         todos: [],
-        websites: websitesObj,
+        websites: {},
         wichtigkeitProzent: wichtigkeit,
         ranking: ranking
       };
@@ -578,26 +574,11 @@ main#mainContent{padding:0 20px 30px 20px;}
         }
       });
       updatesForFirebase[vid] = v;
-    var out = {};
-    SEED_RAW.forEach(function(entry){
-      var name = entry[0], wichtigkeit = entry[1], ranking = entry[2];
-      var vid = uid("v");
-      out[vid] = {
-        name: name,
-        kontaktVerlag: "",
-        zustaendigIntern: "",
-        prioritaet: "mittel",
-        status: "pipeline",
-        letzterKontakt: "",
-        websitesUnabhaengig: false,
-        notizen: "",
-        todos: [],
-        websites: {},
-        wichtigkeitProzent: wichtigkeit,
-        ranking: ranking
-      };
     });
-    return out;
+    if(usingFirebase && dbRef){
+      dbRef.update(updatesForFirebase).catch(function(err){ console.error("Website-Restore fehlgeschlagen:", err); });
+    }
+    renderApp();
   }
 
   function seedIfEmpty(){
@@ -789,6 +770,19 @@ main#mainContent{padding:0 20px 30px 20px;}
   }
 
   /* ================= Render: Modal ================= */
+  function buildPersonSuggestions(fieldName){
+    var values = {};
+    Object.keys(state.verlage).forEach(function(id){
+      var v = state.verlage[id];
+      var val = v[fieldName];
+      if(val && String(val).trim() !== ""){
+        values[String(val).trim()] = true;
+      }
+    });
+    var sorted = Object.keys(values).sort(function(a,b){ return a.localeCompare(b); });
+    return sorted.map(function(v){ return '<option value="' + esc(v) + '">'; }).join("");
+  }
+
   function renderWebsite(wid, w, v){
     var kanaeleHtml = Object.keys(w.kanaele || {}).map(function(kid){
       return renderKanal(wid, kid, w.kanaele[kid]);
@@ -858,6 +852,9 @@ main#mainContent{padding:0 20px 30px 20px;}
     }).join("");
     if(!todosHtml) todosHtml = '<p class="empty-hint">Keine Todos erfasst.</p>';
 
+    var kontaktVerlagOptions = buildPersonSuggestions("kontaktVerlag");
+    var zustaendigInternOptions = buildPersonSuggestions("zustaendigIntern");
+
     return '' +
       '<div class="modal-panel">' +
         '<div class="modal-header">' +
@@ -865,9 +862,11 @@ main#mainContent{padding:0 20px 30px 20px;}
           '<button data-action="close-modal" class="btn-icon close-btn">✕</button>' +
         '</div>' +
         '<div class="modal-body">' +
+          '<datalist id="kontaktVerlagList">' + kontaktVerlagOptions + '</datalist>' +
+          '<datalist id="zustaendigInternList">' + zustaendigInternOptions + '</datalist>' +
           '<div class="field-grid">' +
-            '<div class="field-row"><label>Kontaktperson beim Verlag</label><input type="text" data-field="kontaktVerlag" value="' + esc(v.kontaktVerlag || "") + '"></div>' +
-            '<div class="field-row"><label>Zuständige Person bei uns</label><input type="text" data-field="zustaendigIntern" value="' + esc(v.zustaendigIntern || "") + '"></div>' +
+            '<div class="field-row"><label>Kontaktperson beim Verlag</label><input type="text" list="kontaktVerlagList" data-field="kontaktVerlag" value="' + esc(v.kontaktVerlag || "") + '"></div>' +
+            '<div class="field-row"><label>Zuständige Person bei uns</label><input type="text" list="zustaendigInternList" data-field="zustaendigIntern" value="' + esc(v.zustaendigIntern || "") + '"></div>' +
             '<div class="field-row"><label>Priorität</label>' +
               '<select data-field="prioritaet">' +
                 '<option value="hoch" ' + (v.prioritaet === "hoch" ? "selected" : "") + '>Hoch</option>' +
@@ -1083,7 +1082,6 @@ main#mainContent{padding:0 20px 30px 20px;}
   function renderDetailRow(id){
     var v = state.verlage[id];
     var expanded = !!state.detailExpanded[id];
-    var statuses = ["pipeline","austausch","test","automatisiert"];
     var websites = Object.keys(v.websites || {}).map(function(wid){ return v.websites[wid]; });
     var expandRow = expanded ? (
       '<tr class="detail-expand-row" data-id="' + id + '">' +
@@ -1106,7 +1104,10 @@ main#mainContent{padding:0 20px 30px 20px;}
 
   function renderDetail(){
     var el = document.getElementById("detailView");
-    var ids = detailSortIds(Object.keys(state.verlage));
+    var ids = Object.keys(state.verlage).filter(function(id){
+      return passesFilter(state.verlage[id]);
+    });
+    ids = detailSortIds(ids);
     var headHtml = DETAIL_COLUMNS.map(function(col){
       var sorted = state.detailSort.key === col.key;
       var arrow = sorted ? (state.detailSort.dir === "asc" ? " ▲" : " ▼") : "";
@@ -1141,7 +1142,7 @@ main#mainContent{padding:0 20px 30px 20px;}
       document.getElementById("kanbanView").classList.toggle("hidden", state.currentTab !== "kanban");
       document.getElementById("reminderView").classList.toggle("hidden", state.currentTab !== "reminder");
       document.getElementById("detailView").classList.toggle("hidden", state.currentTab !== "detail");
-      document.getElementById("kanbanToolbar").classList.toggle("hidden", state.currentTab !== "kanban");
+      document.getElementById("kanbanToolbar").classList.toggle("hidden", state.currentTab === "reminder");
       renderApp();
     });
   });
@@ -1149,14 +1150,17 @@ main#mainContent{padding:0 20px 30px 20px;}
   document.getElementById("searchInput").addEventListener("input", function(e){
     state.filter.search = e.target.value;
     renderBoard();
+    if(state.currentTab === "detail") renderDetail();
   });
   document.getElementById("filterStatus").addEventListener("change", function(e){
     state.filter.status = e.target.value;
     renderBoard();
+    if(state.currentTab === "detail") renderDetail();
   });
   document.getElementById("filterPrio").addEventListener("change", function(e){
     state.filter.prioritaet = e.target.value;
     renderBoard();
+    if(state.currentTab === "detail") renderDetail();
   });
 
   document.getElementById("addVerlagBtn").addEventListener("click", function(){
@@ -1193,6 +1197,13 @@ main#mainContent{padding:0 20px 30px 20px;}
   document.getElementById("confirmAddVerlag").addEventListener("click", submitNewVerlag);
   document.getElementById("newVerlagName").addEventListener("keydown", function(e){
     if(e.key === "Enter") submitNewVerlag();
+  });
+
+  document.getElementById("resetWebsitesBtn").addEventListener("click", function(){
+    var ok = window.confirm("Fehlende Website-Namen aus den Stammdaten ergänzen? Bereits vorhandene Websites und Kanäle bleiben unverändert.");
+    if(ok){
+      restoreWebsitesFromSeed();
+    }
   });
 
   /* ================= Event Listener: Kanban Board (Drag & Drop + Klicks) ================= */
@@ -1238,12 +1249,42 @@ main#mainContent{padding:0 20px 30px 20px;}
     if(select){
       var card = select.closest(".kanban-card");
       changeStatus(card.dataset.id, select.value);
+      return;
+    }
+    var sortSelect = e.target.closest(".col-sort-select");
+    if(sortSelect){
+      var st = sortSelect.dataset.status;
+      state.columnSort[st] = sortSelect.value;
+      renderBoard();
     }
   });
   kanbanView.addEventListener("click", function(e){
     if(e.target.closest(".no-card-click")) return;
     var card = e.target.closest(".kanban-card");
     if(card) openModal(card.dataset.id);
+  });
+
+  /* ================= Event Listener: Detailansicht ================= */
+  var detailView = document.getElementById("detailView");
+  detailView.addEventListener("click", function(e){
+    var th = e.target.closest("th[data-key]");
+    if(th){
+      var key = th.dataset.key;
+      if(state.detailSort.key === key){
+        state.detailSort.dir = state.detailSort.dir === "asc" ? "desc" : "asc";
+      } else {
+        state.detailSort.key = key;
+        state.detailSort.dir = "asc";
+      }
+      renderDetail();
+      return;
+    }
+    var row = e.target.closest("tr.verlag-row");
+    if(row){
+      var id = row.dataset.id;
+      state.detailExpanded[id] = !state.detailExpanded[id];
+      renderDetail();
+    }
   });
 
   /* ================= Event Listener: Modal ================= */
