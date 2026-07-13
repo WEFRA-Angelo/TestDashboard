@@ -528,6 +528,58 @@ main#mainContent{padding:0 20px 30px 20px;}
   function buildSeedVerlage(){
     var out = {};
     SEED_RAW.forEach(function(entry){
+      var name = entry[0], wichtigkeit = entry[1], ranking = entry[2], websiteEntries = entry[3] || [];
+      var vid = uid("v");
+      var websitesObj = {};
+      websiteEntries.forEach(function(wEntry){
+        var wName = wEntry[0];
+        var wid = uid("w");
+        websitesObj[wid] = {name: wName, letzterKontakt: "", kanaele: {}};
+      });
+      out[vid] = {
+        name: name,
+        kontaktVerlag: "",
+        zustaendigIntern: "",
+        prioritaet: "mittel",
+        status: "pipeline",
+        letzterKontakt: "",
+        websitesUnabhaengig: false,
+        notizen: "",
+        todos: [],
+        websites: websitesObj,
+        wichtigkeitProzent: wichtigkeit,
+        ranking: ranking
+      };
+    });
+    return out;
+  }
+
+  function restoreWebsitesFromSeed(){
+    var seedByName = {};
+    SEED_RAW.forEach(function(entry){
+      seedByName[entry[0]] = entry[3] || [];
+    });
+    var updatesForFirebase = {};
+    Object.keys(state.verlage).forEach(function(vid){
+      var v = state.verlage[vid];
+      var seedWebsites = seedByName[v.name];
+      if(!seedWebsites) return;
+      if(!v.websites) v.websites = {};
+      var existingNames = {};
+      Object.keys(v.websites).forEach(function(wid){
+        var wname = v.websites[wid].name;
+        if(wname) existingNames[wname] = true;
+      });
+      seedWebsites.forEach(function(wEntry){
+        var wName = wEntry[0];
+        if(!existingNames[wName]){
+          var newWid = uid("w");
+          v.websites[newWid] = {name: wName, letzterKontakt: "", kanaele: {}};
+        }
+      });
+      updatesForFirebase[vid] = v;
+    var out = {};
+    SEED_RAW.forEach(function(entry){
       var name = entry[0], wichtigkeit = entry[1], ranking = entry[2];
       var vid = uid("v");
       out[vid] = {
