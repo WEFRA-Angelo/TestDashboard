@@ -571,11 +571,17 @@ main#mainContent{padding:0 20px 30px 20px;}
   }
 
   function fallbackLocal(){
+    usingFirebase = false;
+    setSyncStatus("offline");
+    if(Object.keys(state.verlage).length === 0){
+      state.verlage = buildSeedVerlage();
+    }
+    renderApp();
+  }
 
   function initFirebase(){
     if(typeof firebase === "undefined"){
       console.warn("Firebase SDK nicht verfügbar - lokaler Fallback aktiv.");
-      setSyncStatus("offline");
       fallbackLocal();
       return;
     }
@@ -595,8 +601,8 @@ main#mainContent{padding:0 20px 30px 20px;}
         if(!data || Object.keys(data).length === 0){
           seedIfEmpty();
         }
+      }).catch(function(err){
         console.error("Firebase Lesefehler:", err);
-        setSyncStatus("offline");
         fallbackLocal();
       });
 
@@ -605,15 +611,12 @@ main#mainContent{padding:0 20px 30px 20px;}
         renderApp();
       }, function(err){
         console.error("Firebase Listener-Fehler:", err);
-        setSyncStatus("offline");
         fallbackLocal();
       });
     } catch(err){
       console.error("Firebase Initialisierung fehlgeschlagen:", err);
-      setSyncStatus("offline");
       fallbackLocal();
     }
-    setTimeout(function(){ fallbackLocal(); }, 4000);
   }
 
   function persist(id){
