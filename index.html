@@ -212,6 +212,7 @@ main#mainContent{padding:0 20px 30px 20px;}
     <option value="niedrig">Niedrig</option>
   </select>
   <button id="addVerlagBtn">+ Neuer Verlag</button>
+  <button id="resetWebsitesBtn">🧹 Alle Websites zurücksetzen</button>
 </div>
 <div class="add-form hidden" id="addVerlagForm">
   <input type="text" id="newVerlagName" placeholder="Name des neuen Verlags...">
@@ -527,19 +528,8 @@ main#mainContent{padding:0 20px 30px 20px;}
   function buildSeedVerlage(){
     var out = {};
     SEED_RAW.forEach(function(entry){
-      var name = entry[0], wichtigkeit = entry[1], ranking = entry[2], sites = entry[3];
+      var name = entry[0], wichtigkeit = entry[1], ranking = entry[2];
       var vid = uid("v");
-      var websites = {};
-      sites.forEach(function(siteEntry){
-        var siteName = siteEntry[0], kanaele = siteEntry[1];
-        var wid = uid("w");
-        var kanaeleObj = {};
-        kanaele.forEach(function(typ){
-          var kid = uid("k");
-          kanaeleObj[kid] = {typ: typ, format: "", beispielLink: ""};
-        });
-        websites[wid] = {name: siteName, letzterKontakt: "", kanaele: kanaeleObj};
-      });
       out[vid] = {
         name: name,
         kontaktVerlag: "",
@@ -550,7 +540,7 @@ main#mainContent{padding:0 20px 30px 20px;}
         websitesUnabhaengig: false,
         notizen: "",
         todos: [],
-        websites: websites,
+        websites: {},
         wichtigkeitProzent: wichtigkeit,
         ranking: ranking
       };
