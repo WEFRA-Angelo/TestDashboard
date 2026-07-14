@@ -861,7 +861,7 @@ main#mainContent{padding:0 20px 30px 20px;}
       var gemeinsameKanaeleRow = gemeinsameKanaeleHtml ? ('<div class="kanal-chips-wrap">' + gemeinsameKanaeleHtml + '</div>') : '';
       gemeinsamerKanalHtml = '' +
         '<div class="field-row small" style="grid-column:1 / -1;">' +
-          '<div class="section-header small"><label style="margin:0;">Gemeinsame Kanäle (für alle Websites)</label><button data-action="add-gemeinsam-kanal" class="btn-small">+ Kanal</button></div>' +
+          '<div class="section-header small"><label style="margin:0;">Gemeinsame Kanäle</label><button data-action="add-gemeinsam-kanal" class="btn-small">+ Kanal</button></div>' +
           gemeinsameKanaeleRow +
         '</div>';
     }
@@ -919,7 +919,7 @@ main#mainContent{padding:0 20px 30px 20px;}
 
           '<div class="section">' +
             '<div class="section-header"><h3>Websites</h3><button data-action="add-website" class="btn-small">+ Website</button></div>' +
-            '<div class="override-toggle"><label><input type="checkbox" data-action="toggle-override" ' + (v.websitesUnabhaengig ? "checked" : "") + '> Websites unabhängig verwalten (individueller letzter Kontakt je Website)</label></div>' +
+            '<div class="override-toggle"><label><input type="checkbox" data-action="toggle-override" ' + (v.websitesUnabhaengig ? "checked" : "") + '> Websites unabhängig verwalten</label></div>' +
             '<div class="website-list">' + websitesHtml + '</div>' +
           '</div>' +
 
@@ -1355,6 +1355,12 @@ main#mainContent{padding:0 20px 30px 20px;}
       v.websites[wid].kanaele[newKid] = {typ: "Mailing", format: "XLS", beispielLink: ""};
     } else if(action === "remove-kanal"){
       if(v.websites && v.websites[wid] && v.websites[wid].kanaele) delete v.websites[wid].kanaele[kid];
+    } else if(action === "add-gemeinsam-kanal"){
+      if(!v.gemeinsameKanaele) v.gemeinsameKanaele = {};
+      var newGkid = uid("k");
+      v.gemeinsameKanaele[newGkid] = {typ: "Mailing", format: "XLS", beispielLink: ""};
+    } else if(action === "remove-gemeinsam-kanal"){
+      if(v.gemeinsameKanaele) delete v.gemeinsameKanaele[kid];
     } else if(action === "toggle-todo"){
       var t1 = (v.todos || []).find(function(t){ return t.id === tid; });
       if(t1) t1.erledigt = !t1.erledigt;
