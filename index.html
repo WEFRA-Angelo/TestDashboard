@@ -1167,11 +1167,10 @@ main#mainContent{padding:0 20px 30px 20px;}
       var typLabel = typen.length ? typen.join(" + ") : "–";
       return '<span class="kanal-badge"><b>' + esc(typLabel) + '</b> · ' + esc(k.format) + '</span>';
     }).join("");
-    if(!kanaeleHtml) kanaeleHtml = '<span class="kanal-badge">Keine Kanäle</span>';
     return '' +
-      '<div class="detail-website-block">' +
+      '<div class="detail-website-block' + (kanaeleHtml ? ' has-kanaele' : '') + '">' +
         '<div class="detail-website-title">🌐 ' + esc(w.name) + (w.letzterKontakt ? ' <span style="color:var(--muted);font-weight:400;font-size:0.78rem;">· letzter Kontakt: ' + formatDate(w.letzterKontakt) + '</span>' : '') + '</div>' +
-        '<div class="detail-kanal-badges">' + kanaeleHtml + '</div>' +
+        (kanaeleHtml ? '<div class="detail-kanal-badges">' + kanaeleHtml + '</div>' : '') +
       '</div>';
   }
 
@@ -1555,12 +1554,6 @@ main#mainContent{padding:0 20px 30px 20px;}
 
     renderApp();
     persist(id);
-  });
-
-  modalOverlay.addEventListener("focusout", function(e){
-    if(e.target.tagName === "TEXTAREA" || (e.target.tagName === "INPUT" && e.target.type === "text")){
-      setTimeout(function(){ if(state.selectedId) renderModal(true); }, 50);
-    }
   });
 
   document.addEventListener("keydown", function(e){
