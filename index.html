@@ -131,10 +131,10 @@ main#mainContent{padding:0 20px 30px 20px;}
   .field-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:18px;}
   .field-row{display:flex;flex-direction:column;gap:4px;}
   .field-row.small{margin:8px 0;}
-  .field-row label{font-size:0.78rem;color:var(--muted);font-weight:600;}
+  .field-row label{font-size:0.78rem;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.3px;}
   .field-row input, .field-row select{padding:8px 10px;border-radius:8px;border:1px solid var(--border);font-size:0.9rem;}
   .section{margin-bottom:22px;}
-  .section h3{margin:0 0 10px 0;font-size:1rem;border-left:4px solid var(--accent);padding-left:8px;}
+  .section h3{display:block;width:100%;margin:0 0 10px 0;font-size:1rem;border-left:4px solid var(--accent);padding:8px 12px;background:rgba(58,93,237,0.08);border-radius:6px;box-sizing:border-box;}
   .section-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
   .section-header.small{margin:10px 0 6px 0;}
   .section-header h3{margin:0;}
@@ -284,7 +284,6 @@ main#mainContent{padding:0 20px 30px 20px;}
 
   var STATUS_LABELS = {pipeline:"Pipeline", austausch:"Austausch", test:"Test", automatisiert:"Automatisiert"};
   var PRIO_LABELS = {hoch:"Hoch", mittel:"Mittel", niedrig:"Niedrig"};
-  var TARGET_TOTAL = 100;
 
   var state = {
     verlage: {},
@@ -668,11 +667,11 @@ main#mainContent{padding:0 20px 30px 20px;}
       var ampel = getVerlagAmpel(v);
       if(ampel.level === "red") overdueCount++;
     });
-    var pct = Math.min(Math.round((counts.automatisiert / TARGET_TOTAL) * 100), 100);
+    var pct = total > 0 ? Math.min(Math.round((counts.automatisiert / total) * 100), 100) : 0;
     var automatisiertPct = total > 0 ? Math.round((counts.automatisiert / total) * 100) : 0;
     el.innerHTML =
       '<div class="kpi-tile">' +
-        '<div class="kpi-value">' + counts.automatisiert + ' / ' + TARGET_TOTAL + '</div>' +
+        '<div class="kpi-value">' + counts.automatisiert + ' / ' + total + '</div>' +
         '<div class="kpi-label">Verlage automatisiert (Ziel)</div>' +
         '<div class="progress-bar-outer"><div class="progress-bar-inner" style="width:' + pct + '%"></div></div>' +
       '</div>' +
@@ -859,6 +858,8 @@ main#mainContent{padding:0 20px 30px 20px;}
         '<div class="modal-body">' +
           '<datalist id="kontaktVerlagList">' + kontaktVerlagOptions + '</datalist>' +
           '<datalist id="zustaendigInternList">' + zustaendigInternOptions + '</datalist>' +
+          '<div class="section">' +
+          '<h3>Kontakt & Status</h3>' +
           '<div class="field-grid">' +
             '<div class="field-row"><label>Kontaktperson beim Verlag</label><input type="text" list="kontaktVerlagList" data-field="kontaktVerlag" value="' + esc(v.kontaktVerlag || "") + '"></div>' +
             '<div class="field-row"><label>Zuständige Person bei uns</label><input type="text" list="zustaendigInternList" data-field="zustaendigIntern" value="' + esc(v.zustaendigIntern || "") + '"></div>' +
@@ -877,6 +878,7 @@ main#mainContent{padding:0 20px 30px 20px;}
                 '<option value="automatisiert" ' + (v.status === "automatisiert" ? "selected" : "") + '>Automatisiert</option>' +
               '</select>' +
             '</div>' +
+          '</div>' +
           '</div>' +
 
           '<div class="section">' +
