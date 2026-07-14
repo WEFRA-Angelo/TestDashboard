@@ -776,16 +776,26 @@ main#mainContent{padding:0 20px 30px 20px;}
     return sorted.map(function(v){ return '<option value="' + esc(v) + '">'; }).join("");
   }
 
+  function showSharedKanaele(v){
+    return v.websitesUnabhaengig === true && v.kanaeleUnabhaengig === false;
+  }
+
   function renderWebsite(wid, w, v){
-    var kanaeleHtml = Object.keys(w.kanaele || {}).map(function(kid){
-      return renderKanal(wid, kid, w.kanaele[kid]);
-    }).join("");
-    if(!kanaeleHtml) kanaeleHtml = '<span class="empty-hint" style="padding:0 4px;">Keine Kanäle</span>';
+    var kanalSection = "";
+    if(!showSharedKanaele(v)){
+      var kanaeleHtml = Object.keys(w.kanaele || {}).map(function(kid){
+        return renderKanal(wid, kid, w.kanaele[kid]);
+      }).join("");
+      var kanaeleRow = kanaeleHtml ? ('<div class="kanal-chips-wrap">' + kanaeleHtml + '</div>') : '';
+      kanalSection = '<div class="website-actions-kanal"></div>' + kanaeleRow;
+    }
 
     var dateField = "";
     if(v.websitesUnabhaengig){
       dateField = '<span class="website-date-inline"><input type="date" data-field="website-date" data-wid="' + wid + '" value="' + (w.letzterKontakt || "") + '"></span>';
     }
+
+    var kanalBtn = showSharedKanaele(v) ? '' : ('<button data-action="add-kanal" data-wid="' + wid + '" class="btn-small">+ Kanal</button>');
 
     return '' +
       '<div class="website-block">' +
@@ -795,11 +805,11 @@ main#mainContent{padding:0 20px 30px 20px;}
             dateField +
           '</div>' +
           '<div class="website-actions">' +
-            '<button data-action="add-kanal" data-wid="' + wid + '" class="btn-small">+ Kanal</button>' +
+            kanalBtn +
             '<button data-action="remove-website" data-wid="' + wid + '" class="btn-icon" title="Website entfernen">🗑</button>' +
           '</div>' +
         '</div>' +
-        '<div class="kanal-chips-wrap">' + kanaeleHtml + '</div>' +
+        (showSharedKanaele(v) ? '' : ('<div class="kanal-chips-wrap">' + Object.keys(w.kanaele || {}).map(function(kid){ return renderKanal(wid, kid, w.kanaele[kid]); }).join("") + '</div>')) +
       '</div>';
   }
 
@@ -827,8 +837,9 @@ main#mainContent{padding:0 20px 30px 20px;}
     if(!websitesHtml) websitesHtml = '<p class="empty-hint">Noch keine Website erfasst.</p>';
 
     var verlagDateRow = "";
+    var kontaktStatusDateField = "";
     if(!v.websitesUnabhaengig){
-      verlagDateRow = '<div class="field-row"><label>Letzter Kontakt (verlagsweit)</label>' +
+      kontaktStatusDateField = '<div class="field-row"><label>Letzter Kontakt (verlagsweit)</label>' +
         '<input type="date" data-field="letzterKontakt" value="' + (v.letzterKontakt || "") + '"></div>';
     }
 
@@ -869,7 +880,8 @@ main#mainContent{padding:0 20px 30px 20px;}
                 '<option value="mittel" ' + (v.prioritaet === "mittel" ? "selected" : "") + '>Mittel</option>' +
                 '<option value="niedrig" ' + (v.prioritaet === "niedrig" ? "selected" : "") + '>Niedrig</option>' +
               '</select>' +
-            '</div>' +
+            kontaktStatusDateField +
+          '</div>' +
             '<div class="field-row"><label>Status</label>' +
               '<select data-field="status">' +
                 '<option value="pipeline" ' + (v.status === "pipeline" ? "selected" : "") + '>Pipeline</option>' +
@@ -884,7 +896,6 @@ main#mainContent{padding:0 20px 30px 20px;}
           '<div class="section">' +
             '<div class="section-header"><h3>Websites</h3><button data-action="add-website" class="btn-small">+ Website</button></div>' +
             '<div class="override-toggle"><label><input type="checkbox" data-action="toggle-override" ' + (v.websitesUnabhaengig ? "checked" : "") + '> Websites unabhängig verwalten (individueller letzter Kontakt je Website)</label></div>' +
-            verlagDateRow +
             '<div class="website-list">' + websitesHtml + '</div>' +
           '</div>' +
 
