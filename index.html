@@ -325,6 +325,12 @@ main#mainContent{padding:0 20px 30px 20px;}
     if(parts.length !== 3) return iso;
     return parts[2] + "." + parts[1] + "." + parts[0];
   }
+  function personName(personId){
+    if(!personId) return "–";
+    var p = state.personen[personId];
+    if(!p) return "–";
+    return ((p.vorname || "") + " " + (p.nachname || "")).trim() || "–";
+  }
   function workdaysSince(dateStr){
     if(!dateStr) return null;
     var start = new Date(dateStr + "T00:00:00");
@@ -619,6 +625,7 @@ main#mainContent{padding:0 20px 30px 20px;}
       firebase.initializeApp(firebaseConfig);
       var db = firebase.database();
       dbRef = db.ref("verlage");
+      dbRef2 = db.ref("personen");
       usingFirebase = true;
 
       db.ref(".info/connected").on("value", function(snap){
@@ -642,6 +649,20 @@ main#mainContent{padding:0 20px 30px 20px;}
       }, function(err){
         console.error("Firebase Listener-Fehler:", err);
         fallbackLocal();
+      });
+
+      dbRef2.once("value").then(function(snap){
+        state.personen = snap.val() || {};
+        renderApp();
+      }).catch(function(err){
+        console.error("Firebase Personen-Lesefehler:", err);
+      });
+
+      dbRef2.on("value", function(snap){
+        state.personen = snap.val() || {};
+        renderApp();
+      }, function(err){
+        console.error("Firebase Personen-Listener-Fehler:", err);
       });
     } catch(err){
       console.error("Firebase Initialisierung fehlgeschlagen:", err);
@@ -700,7 +721,7 @@ main#mainContent{padding:0 20px 30px 20px;}
   function passesFilter(v){
     var s = state.filter.search.trim().toLowerCase();
     if(s){
-      var hay = ((v.name||"") + " " + (v.kontaktVerlag||"") + " " + (v.zustaendigIntern||"")).toLowerCase();
+      var hay = ((v.name||"") + " " + personName(v.kontaktVerlag) + " " + personName(v.zustaendigIntern)).toLowerCase();
       if(hay.indexOf(s) === -1) return false;
     }
     if(state.filter.status !== "all" && v.status !== state.filter.status) return false;
@@ -729,8 +750,8 @@ main#mainContent{padding:0 20px 30px 20px;}
         '</div>' +
         '<h3 class="card-title">' + esc(v.name) + '</h3>' +
         '<div class="card-meta">' +
-          '<div><span class="meta-label">Kontakt Verlag:</span> ' + esc(v.kontaktVerlag || "–") + '</div>' +
-          '<div><span class="meta-label">Zuständig intern:</span> ' + esc(v.zustaendigIntern || "–") + '</div>' +
+          '<div><span class="meta-label">Verlag Kontakt:</span> ' + esc(personName(v.kontaktVerlag)) + '</div>' +
+          '<div><span class="meta-label">Zuständig:</span> ' + esc(personName(v.zustaendigIntern)) + '</div>' +
           '<div><span class="meta-label">Letzter Kontakt:</span> ' + lastContactDisplay + '</div>' +
         '</div>' +
         '<div class="card-footer no-card-click">' +
@@ -774,17 +795,18 @@ main#mainContent{padding:0 20px 30px 20px;}
     persist(id);
   }
 
-  function buildPersonSuggestions(fieldName){
-    var values = {};
-    Object.keys(state.verlage).forEach(function(id){
-      var v = state.verlage[id];
-      var val = v[fieldName];
-      if(val && String(val).trim() !== ""){
-        values[String(val).trim()] = true;
-      }
+  function buildPersonOptions(selectedId){
+    var list = Object.keys(state.personen).map(function(pid){
+      var p = state.personen[pid];
+      return {id: pid, vorname: p.vorname || "", nachname: p.nachname || ""};
     });
-    var sorted = Object.keys(values).sort(function(a,b){ return a.localeCompare(b); });
-    return sorted.map(function(v){ return '<option value="' + esc(v) + '">'; }).join("");
+    list.sort(function(a,b){ return (a.nachname || "").localeCompare(b.nachname || ""); });
+    var html = '<option value="">–</option>';
+    html += list.map(function(p){
+      return '<option value="' + p.id + '" ' + (selectedId === p.id ? "selected" : "") + '>' + esc((p.vorname + " " + p.nachname).trim()) + '</option>';
+    }).join("");
+    html += '<option value="__new__">+ Neue Person anlegen</option>';
+    return html;
   }
 
   function renderWebsite(wid, w, v){
@@ -817,14 +839,24 @@ main#mainContent{padding:0 20px 30px 20px;}
       '</div>';
   }
 
+  var KANAL_TYPEN = ["Mailing","Display","Social","Kombi"];
+
+  function normalizeKanalTypen(k){
+    if(!k.typen){
+      k.typen = k.typ ? [k.typ] : [];
+    }
+    return k.typen;
+  }
+
   function renderKanal(wid, kid, k){
-    var typen = ["Mailing","Display","Social","Kombi"];
-    var typOptions = typen.map(function(t){
-      return '<option value="' + t + '" ' + (k.typ === t ? "selected" : "") + '>' + t + '</option>';
+    var typen = normalizeKanalTypen(k);
+    var checksHtml = KANAL_TYPEN.map(function(t){
+      var checked = typen.indexOf(t) !== -1 ? "checked" : "";
+      return '<label><input type="checkbox" data-field="kanal-typ-check" data-wid="' + wid + '" data-kid="' + kid + '" data-typ="' + t + '" ' + checked + '> ' + t + '</label>';
     }).join("");
     return '' +
       '<span class="kanal-chip">' +
-        '<select data-field="kanal-typ" data-wid="' + wid + '" data-kid="' + kid + '">' + typOptions + '</select>' +
+        '<span class="kanal-typ-checks">' + checksHtml + '</span>' +
         '<select data-field="kanal-format" data-wid="' + wid + '" data-kid="' + kid + '">' +
           '<option value="XLS" ' + (k.format === "XLS" ? "selected" : "") + '>XLS</option>' +
           '<option value="CSV" ' + (k.format === "CSV" ? "selected" : "") + '>CSV</option>' +
@@ -836,13 +868,14 @@ main#mainContent{padding:0 20px 30px 20px;}
   }
 
   function renderGemeinsamerKanal(kid, k){
-    var typen = ["Mailing","Display","Social","Kombi"];
-    var typOptions = typen.map(function(t){
-      return '<option value="' + t + '" ' + (k.typ === t ? "selected" : "") + '>' + t + '</option>';
+    var typen = normalizeKanalTypen(k);
+    var checksHtml = KANAL_TYPEN.map(function(t){
+      var checked = typen.indexOf(t) !== -1 ? "checked" : "";
+      return '<label><input type="checkbox" data-field="gemeinsam-kanal-typ-check" data-kid="' + kid + '" data-typ="' + t + '" ' + checked + '> ' + t + '</label>';
     }).join("");
     return '' +
       '<span class="kanal-chip">' +
-        '<select data-field="gemeinsam-kanal-typ" data-kid="' + kid + '">' + typOptions + '</select>' +
+        '<span class="kanal-typ-checks">' + checksHtml + '</span>' +
         '<select data-field="gemeinsam-kanal-format" data-kid="' + kid + '">' +
           '<option value="XLS" ' + (k.format === "XLS" ? "selected" : "") + '>XLS</option>' +
           '<option value="CSV" ' + (k.format === "CSV" ? "selected" : "") + '>CSV</option>' +
@@ -853,13 +886,22 @@ main#mainContent{padding:0 20px 30px 20px;}
       '</span>';
   }
 
+  function renderNewPersonForm(fieldName){
+    return '' +
+      '<div class="new-person-form hidden" data-for="' + fieldName + '">' +
+        '<input type="text" data-newperson="vorname" placeholder="Vorname">' +
+        '<input type="text" data-newperson="nachname" placeholder="Nachname">' +
+        '<input type="text" data-newperson="email" placeholder="E-Mail">' +
+        '<button type="button" data-action="create-person" data-for="' + fieldName + '">Anlegen</button>' +
+      '</div>';
+  }
+
   function renderModalHtml(id, v){
     var websitesHtml = Object.keys(v.websites || {}).map(function(wid){
       return renderWebsite(wid, v.websites[wid], v);
     }).join("");
     if(!websitesHtml) websitesHtml = '<p class="empty-hint">Noch keine Website erfasst.</p>';
 
-    var verlagDateRow = "";
     var kontaktStatusDateField = "";
     var gemeinsamerKanalHtml = "";
     if(!v.websitesUnabhaengig){
@@ -891,8 +933,14 @@ main#mainContent{padding:0 20px 30px 20px;}
     }).join("");
     if(!todosHtml) todosHtml = '<p class="empty-hint">Keine Todos erfasst.</p>';
 
-    var kontaktVerlagOptions = buildPersonSuggestions("kontaktVerlag");
-    var zustaendigInternOptions = buildPersonSuggestions("zustaendigIntern");
+    var kontaktVerlagOptions = buildPersonOptions(v.kontaktVerlag);
+    var zustaendigInternOptions = buildPersonOptions(v.zustaendigIntern);
+
+    var statusOptionsHtml =
+      '<option value="pipeline" ' + (v.status === "pipeline" ? "selected" : "") + '>Pipeline</option>' +
+      '<option value="austausch" ' + (v.status === "austausch" ? "selected" : "") + '>Austausch</option>' +
+      '<option value="test" ' + (v.status === "test" ? "selected" : "") + '>Test</option>' +
+      '<option value="automatisiert" ' + (v.status === "automatisiert" ? "selected" : "") + '>Automatisiert</option>';
 
     return '' +
       '<div class="modal-panel">' +
@@ -901,31 +949,30 @@ main#mainContent{padding:0 20px 30px 20px;}
           '<button data-action="close-modal" class="btn-icon close-btn">✕</button>' +
         '</div>' +
         '<div class="modal-body">' +
-          '<datalist id="kontaktVerlagList">' + kontaktVerlagOptions + '</datalist>' +
-          '<datalist id="zustaendigInternList">' + zustaendigInternOptions + '</datalist>' +
           '<div class="section">' +
           '<h3>Kontakt & Status</h3>' +
           '<div class="field-grid">' +
-            '<div class="field-row"><label>Kontaktperson beim Verlag</label><input type="text" list="kontaktVerlagList" data-field="kontaktVerlag" value="' + esc(v.kontaktVerlag || "") + '"></div>' +
-            '<div class="field-row"><label>Zuständige Person bei uns</label><input type="text" list="zustaendigInternList" data-field="zustaendigIntern" value="' + esc(v.zustaendigIntern || "") + '"></div>' +
+            '<div class="field-row person-select-wrap"><label>Verlag Kontakt</label>' +
+              '<select data-field="kontaktVerlag">' + kontaktVerlagOptions + '</select>' +
+              renderNewPersonForm("kontaktVerlag") +
+            '</div>' +
+            '<div class="field-row person-select-wrap"><label>Zuständig</label>' +
+              '<select data-field="zustaendigIntern">' + zustaendigInternOptions + '</select>' +
+              renderNewPersonForm("zustaendigIntern") +
+            '</div>' +
             '<div class="field-row"><label>Priorität</label>' +
               '<select data-field="prioritaet">' +
                 '<option value="hoch" ' + (v.prioritaet === "hoch" ? "selected" : "") + '>Hoch</option>' +
                 '<option value="mittel" ' + (v.prioritaet === "mittel" ? "selected" : "") + '>Mittel</option>' +
                 '<option value="niedrig" ' + (v.prioritaet === "niedrig" ? "selected" : "") + '>Niedrig</option>' +
               '</select>' +
+            '</div>' +
+            '<div class="field-row"><label>Status</label>' +
+              '<select data-field="status">' + statusOptionsHtml + '</select>' +
+            '</div>' +
             kontaktStatusDateField +
           '</div>' +
             gemeinsamerKanalHtml +
-            '<div class="field-row"><label>Status</label>' +
-              '<select data-field="status">' +
-                '<option value="pipeline" ' + (v.status === "pipeline" ? "selected" : "") + '>Pipeline</option>' +
-                '<option value="austausch" ' + (v.status === "austausch" ? "selected" : "") + '>Austausch</option>' +
-                '<option value="test" ' + (v.status === "test" ? "selected" : "") + '>Test</option>' +
-                '<option value="automatisiert" ' + (v.status === "automatisiert" ? "selected" : "") + '>Automatisiert</option>' +
-              '</select>' +
-            '</div>' +
-          '</div>' +
           '</div>' +
 
           '<div class="section">' +
@@ -1095,7 +1142,7 @@ main#mainContent{padding:0 20px 30px 20px;}
         case "prioritaet": A = PRIO_RANK[v(a).prioritaet]||0; B = PRIO_RANK[v(b).prioritaet]||0; break;
         case "wichtigkeitProzent": A = numOrNeg(v(a).wichtigkeitProzent); B = numOrNeg(v(b).wichtigkeitProzent); break;
         case "status": A = v(a).status||""; B = v(b).status||""; break;
-        case "kontaktVerlag": A = (v(a).kontaktVerlag||"").toLowerCase(); B = (v(b).kontaktVerlag||"").toLowerCase(); break;
+        case "kontaktVerlag": A = personName(v(a).kontaktVerlag).toLowerCase(); B = personName(v(b).kontaktVerlag).toLowerCase(); break;
         case "websites": A = websiteCount(v(a)); B = websiteCount(v(b)); break;
         case "letzterKontakt": A = getOldestContactDate(v(a))||""; B = getOldestContactDate(v(b))||""; break;
         default: A = (v(a).name||"").toLowerCase(); B = (v(b).name||"").toLowerCase();
@@ -1110,7 +1157,9 @@ main#mainContent{padding:0 20px 30px 20px;}
   function renderDetailWebsiteBlock(w){
     var kanaeleHtml = Object.keys(w.kanaele || {}).map(function(kid){
       var k = w.kanaele[kid];
-      return '<span class="kanal-badge"><b>' + esc(k.typ) + '</b> · ' + esc(k.format) + '</span>';
+      var typen = k.typen || (k.typ ? [k.typ] : []);
+      var typLabel = typen.length ? typen.join(" + ") : "–";
+      return '<span class="kanal-badge"><b>' + esc(typLabel) + '</b> · ' + esc(k.format) + '</span>';
     }).join("");
     if(!kanaeleHtml) kanaeleHtml = '<span class="kanal-badge">Keine Kanäle</span>';
     return '' +
@@ -1137,7 +1186,7 @@ main#mainContent{padding:0 20px 30px 20px;}
         '<td><span class="prio-badge prio-' + v.prioritaet + '">' + (PRIO_LABELS[v.prioritaet] || "–") + '</span></td>' +
         '<td>' + (v.wichtigkeitProzent !== undefined && v.wichtigkeitProzent !== null && v.wichtigkeitProzent !== "" ? Number(v.wichtigkeitProzent).toFixed(2) + " %" : "–") + '</td>' +
         '<td><span class="status-badge status-' + v.status + '">' + (STATUS_LABELS[v.status] || "–") + '</span></td>' +
-        '<td>' + esc(v.kontaktVerlag || "–") + '</td>' +
+        '<td>' + esc(personName(v.kontaktVerlag)) + '</td>' +
         '<td>' + websiteCount(v) + '</td>' +
         '<td>' + formatDate(getOldestContactDate(v)) + '</td>' +
       '</tr>' + expandRow;
@@ -1327,6 +1376,20 @@ main#mainContent{padding:0 20px 30px 20px;}
 
   var modalOverlay = document.getElementById("modalOverlay");
 
+  function createPerson(vorname, nachname, email){
+    var pid;
+    if(usingFirebase && dbRef2){
+      var newRef = dbRef2.push();
+      pid = newRef.key;
+      newRef.set({vorname: vorname, nachname: nachname, email: email || ""}).catch(function(err){ console.error("Person anlegen fehlgeschlagen:", err); });
+      state.personen[pid] = {vorname: vorname, nachname: nachname, email: email || ""};
+    } else {
+      pid = uid("p");
+      state.personen[pid] = {vorname: vorname, nachname: nachname, email: email || ""};
+    }
+    return pid;
+  }
+
   modalOverlay.addEventListener("click", function(e){
     if(e.target.id === "modalOverlay"){
       closeModal();
@@ -1363,13 +1426,13 @@ main#mainContent{padding:0 20px 30px 20px;}
       if(!v.websites || !v.websites[wid]) return;
       if(!v.websites[wid].kanaele) v.websites[wid].kanaele = {};
       var newKid = uid("k");
-      v.websites[wid].kanaele[newKid] = {typ: "Mailing", format: "XLS", beispielLink: ""};
+      v.websites[wid].kanaele[newKid] = {typen: ["Mailing"], format: "XLS", beispielLink: ""};
     } else if(action === "remove-kanal"){
       if(v.websites && v.websites[wid] && v.websites[wid].kanaele) delete v.websites[wid].kanaele[kid];
     } else if(action === "add-gemeinsam-kanal"){
       if(!v.gemeinsameKanaele) v.gemeinsameKanaele = {};
       var newGkid = uid("k");
-      v.gemeinsameKanaele[newGkid] = {typ: "Mailing", format: "XLS", beispielLink: ""};
+      v.gemeinsameKanaele[newGkid] = {typen: ["Mailing"], format: "XLS", beispielLink: ""};
     } else if(action === "remove-gemeinsam-kanal"){
       if(v.gemeinsameKanaele) delete v.gemeinsameKanaele[kid];
     } else if(action === "toggle-todo"){
@@ -1384,6 +1447,23 @@ main#mainContent{padding:0 20px 30px 20px;}
       if(!text) return;
       if(!v.todos) v.todos = [];
       v.todos.push({id: uid("t"), text: text, faellig: dateInput.value || "", erledigt:false});
+    } else if(action === "create-person"){
+      var forField = btn.dataset.for;
+      var wrap = btn.closest(".new-person-form");
+      if(!wrap) return;
+      var vornameEl = wrap.querySelector('[data-newperson="vorname"]');
+      var nachnameEl = wrap.querySelector('[data-newperson="nachname"]');
+      var emailEl = wrap.querySelector('[data-newperson="email"]');
+      var vorname = vornameEl.value.trim();
+      var nachname = nachnameEl.value.trim();
+      var email = emailEl.value.trim();
+      if(!vorname || !nachname) return;
+      var pid = createPerson(vorname, nachname, email);
+      if(forField === "kontaktVerlag") v.kontaktVerlag = pid;
+      else if(forField === "zustaendigIntern") v.zustaendigIntern = pid;
+      renderApp();
+      persist(id);
+      return;
     } else {
       return;
     }
@@ -1402,11 +1482,10 @@ main#mainContent{padding:0 20px 30px 20px;}
     var kid = e.target.dataset.kid;
 
     if(field === "name") v.name = e.target.value;
-    else if(field === "kontaktVerlag") v.kontaktVerlag = e.target.value;
-    else if(field === "zustaendigIntern") v.zustaendigIntern = e.target.value;
     else if(field === "notizen") v.notizen = e.target.value;
     else if(field === "website-name"){ if(v.websites && v.websites[wid]) v.websites[wid].name = e.target.value; }
     else if(field === "kanal-link"){ if(v.websites && v.websites[wid] && v.websites[wid].kanaele[kid]) v.websites[wid].kanaele[kid].beispielLink = e.target.value; }
+    else if(field === "gemeinsam-kanal-link"){ if(v.gemeinsameKanaele && v.gemeinsameKanaele[kid]) v.gemeinsameKanaele[kid].beispielLink = e.target.value; }
     else return;
 
     renderApp();
@@ -1422,12 +1501,50 @@ main#mainContent{padding:0 20px 30px 20px;}
     var wid = e.target.dataset.wid;
     var kid = e.target.dataset.kid;
 
-    if(field === "prioritaet") v.prioritaet = e.target.value;
+    if(field === "kontaktVerlag" || field === "zustaendigIntern"){
+      if(e.target.value === "__new__"){
+        var formWrap = e.target.closest(".field-row").querySelector('.new-person-form[data-for="' + field + '"]');
+        if(formWrap){
+          formWrap.classList.remove("hidden");
+          var vornameInput = formWrap.querySelector('[data-newperson="vorname"]');
+          if(vornameInput) vornameInput.focus();
+        }
+        return;
+      }
+      v[field] = e.target.value;
+    }
+    else if(field === "prioritaet") v.prioritaet = e.target.value;
     else if(field === "status") v.status = e.target.value;
     else if(field === "letzterKontakt") v.letzterKontakt = e.target.value;
     else if(field === "website-date"){ if(v.websites && v.websites[wid]) v.websites[wid].letzterKontakt = e.target.value; }
-    else if(field === "kanal-typ"){ if(v.websites && v.websites[wid] && v.websites[wid].kanaele[kid]) v.websites[wid].kanaele[kid].typ = e.target.value; }
     else if(field === "kanal-format"){ if(v.websites && v.websites[wid] && v.websites[wid].kanaele[kid]) v.websites[wid].kanaele[kid].format = e.target.value; }
+    else if(field === "gemeinsam-kanal-format"){ if(v.gemeinsameKanaele && v.gemeinsameKanaele[kid]) v.gemeinsameKanaele[kid].format = e.target.value; }
+    else if(field === "kanal-typ-check"){
+      if(v.websites && v.websites[wid] && v.websites[wid].kanaele[kid]){
+        var kObj = v.websites[wid].kanaele[kid];
+        if(!kObj.typen) kObj.typen = kObj.typ ? [kObj.typ] : [];
+        var typVal = e.target.dataset.typ;
+        var idx = kObj.typen.indexOf(typVal);
+        if(e.target.checked){
+          if(idx === -1) kObj.typen.push(typVal);
+        } else {
+          if(idx !== -1) kObj.typen.splice(idx, 1);
+        }
+      }
+    }
+    else if(field === "gemeinsam-kanal-typ-check"){
+      if(v.gemeinsameKanaele && v.gemeinsameKanaele[kid]){
+        var gkObj = v.gemeinsameKanaele[kid];
+        if(!gkObj.typen) gkObj.typen = gkObj.typ ? [gkObj.typ] : [];
+        var typVal2 = e.target.dataset.typ;
+        var idx2 = gkObj.typen.indexOf(typVal2);
+        if(e.target.checked){
+          if(idx2 === -1) gkObj.typen.push(typVal2);
+        } else {
+          if(idx2 !== -1) gkObj.typen.splice(idx2, 1);
+        }
+      }
+    }
     else return;
 
     renderApp();
