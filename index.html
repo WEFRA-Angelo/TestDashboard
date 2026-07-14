@@ -287,6 +287,7 @@ main#mainContent{padding:0 20px 30px 20px;}
   };
 
   var dbRef = null;
+  var dbRef2 = null;
   var usingFirebase = false;
   var saveTimers = {};
 
@@ -295,13 +296,15 @@ main#mainContent{padding:0 20px 30px 20px;}
 
   var state = {
     verlage: {},
+    personen: {},
     filter: {search:"", status:"all", prioritaet:"all"},
     selectedId: null,
     currentTab: "kanban",
     draggingId: null,
     columnSort: {pipeline:"wichtigkeit-desc", austausch:"wichtigkeit-desc", test:"wichtigkeit-desc", automatisiert:"wichtigkeit-desc"},
     detailSort: {key:"name", dir:"asc"},
-    detailExpanded: {}
+    detailExpanded: {},
+    newPersonOpenFor: null
   };
 
   function uid(prefix){
