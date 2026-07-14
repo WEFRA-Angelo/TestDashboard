@@ -776,26 +776,19 @@ main#mainContent{padding:0 20px 30px 20px;}
     return sorted.map(function(v){ return '<option value="' + esc(v) + '">'; }).join("");
   }
 
-  function showSharedKanaele(v){
-    return v.websitesUnabhaengig === true && v.kanaeleUnabhaengig === false;
-  }
-
   function renderWebsite(wid, w, v){
+    var dateField = "";
     var kanalSection = "";
-    if(!showSharedKanaele(v)){
+    if(v.websitesUnabhaengig){
+      dateField = '<span class="website-date-inline"><input type="date" data-field="website-date" data-wid="' + wid + '" value="' + (w.letzterKontakt || "") + '"></span>';
       var kanaeleHtml = Object.keys(w.kanaele || {}).map(function(kid){
         return renderKanal(wid, kid, w.kanaele[kid]);
       }).join("");
-      var kanaeleRow = kanaeleHtml ? ('<div class="kanal-chips-wrap">' + kanaeleHtml + '</div>') : '';
-      kanalSection = '<div class="website-actions-kanal"></div>' + kanaeleRow;
+      var kanaeleRow = '<div class="kanal-chips-wrap">' + kanaeleHtml + '</div>';
+      kanalSection = kanaeleRow;
     }
 
-    var dateField = "";
-    if(v.websitesUnabhaengig){
-      dateField = '<span class="website-date-inline"><input type="date" data-field="website-date" data-wid="' + wid + '" value="' + (w.letzterKontakt || "") + '"></span>';
-    }
-
-    var kanalBtn = showSharedKanaele(v) ? '' : ('<button data-action="add-kanal" data-wid="' + wid + '" class="btn-small">+ Kanal</button>');
+    var kanalBtn = v.websitesUnabhaengig ? ('<button data-action="add-kanal" data-wid="' + wid + '" class="btn-small">+ Kanal</button>') : '';
 
     return '' +
       '<div class="website-block">' +
@@ -809,7 +802,7 @@ main#mainContent{padding:0 20px 30px 20px;}
             '<button data-action="remove-website" data-wid="' + wid + '" class="btn-icon" title="Website entfernen">🗑</button>' +
           '</div>' +
         '</div>' +
-        (showSharedKanaele(v) ? '' : ('<div class="kanal-chips-wrap">' + Object.keys(w.kanaele || {}).map(function(kid){ return renderKanal(wid, kid, w.kanaele[kid]); }).join("") + '</div>')) +
+        kanalSection +
       '</div>';
   }
 
@@ -824,9 +817,28 @@ main#mainContent{padding:0 20px 30px 20px;}
         '<select data-field="kanal-format" data-wid="' + wid + '" data-kid="' + kid + '">' +
           '<option value="XLS" ' + (k.format === "XLS" ? "selected" : "") + '>XLS</option>' +
           '<option value="CSV" ' + (k.format === "CSV" ? "selected" : "") + '>CSV</option>' +
+          '<option value="API" ' + (k.format === "API" ? "selected" : "") + '>API</option>' +
         '</select>' +
         '<input type="text" data-field="kanal-link" data-wid="' + wid + '" data-kid="' + kid + '" value="' + esc(k.beispielLink || "") + '" placeholder="Link" title="Link zur Beispiel-Reporting-Datei">' +
         '<button data-action="remove-kanal" data-wid="' + wid + '" data-kid="' + kid + '" class="chip-remove" title="Kanal entfernen">✕</button>' +
+      '</span>';
+  }
+
+  function renderGemeinsamerKanal(kid, k){
+    var typen = ["Mailing","Display","Social","Kombi"];
+    var typOptions = typen.map(function(t){
+      return '<option value="' + t + '" ' + (k.typ === t ? "selected" : "") + '>' + t + '</option>';
+    }).join("");
+    return '' +
+      '<span class="kanal-chip">' +
+        '<select data-field="gemeinsam-kanal-typ" data-kid="' + kid + '">' + typOptions + '</select>' +
+        '<select data-field="gemeinsam-kanal-format" data-kid="' + kid + '">' +
+          '<option value="XLS" ' + (k.format === "XLS" ? "selected" : "") + '>XLS</option>' +
+          '<option value="CSV" ' + (k.format === "CSV" ? "selected" : "") + '>CSV</option>' +
+          '<option value="API" ' + (k.format === "API" ? "selected" : "") + '>API</option>' +
+        '</select>' +
+        '<input type="text" data-field="gemeinsam-kanal-link" data-kid="' + kid + '" value="' + esc(k.beispielLink || "") + '" placeholder="Link" title="Link zur Beispiel-Reporting-Datei">' +
+        '<button data-action="remove-gemeinsam-kanal" data-kid="' + kid + '" class="chip-remove" title="Kanal entfernen">✕</button>' +
       '</span>';
   }
 
@@ -838,9 +850,20 @@ main#mainContent{padding:0 20px 30px 20px;}
 
     var verlagDateRow = "";
     var kontaktStatusDateField = "";
+    var gemeinsamerKanalHtml = "";
     if(!v.websitesUnabhaengig){
-      kontaktStatusDateField = '<div class="field-row"><label>Letzter Kontakt (verlagsweit)</label>' +
+      kontaktStatusDateField = '<div class="field-row"><label>Letzter Kontakt</label>' +
         '<input type="date" data-field="letzterKontakt" value="' + (v.letzterKontakt || "") + '"></div>';
+      var gemeinsameKanaele = v.gemeinsameKanaele || {};
+      var gemeinsameKanaeleHtml = Object.keys(gemeinsameKanaele).map(function(kid){
+        return renderGemeinsamerKanal(kid, gemeinsameKanaele[kid]);
+      }).join("");
+      var gemeinsameKanaeleRow = gemeinsameKanaeleHtml ? ('<div class="kanal-chips-wrap">' + gemeinsameKanaeleHtml + '</div>') : '';
+      gemeinsamerKanalHtml = '' +
+        '<div class="field-row small" style="grid-column:1 / -1;">' +
+          '<div class="section-header small"><label style="margin:0;">Gemeinsame Kanäle (für alle Websites)</label><button data-action="add-gemeinsam-kanal" class="btn-small">+ Kanal</button></div>' +
+          gemeinsameKanaeleRow +
+        '</div>';
     }
 
     var todosSorted = (v.todos || []).slice().sort(function(a,b){
@@ -882,6 +905,7 @@ main#mainContent{padding:0 20px 30px 20px;}
               '</select>' +
             kontaktStatusDateField +
           '</div>' +
+            gemeinsamerKanalHtml +
             '<div class="field-row"><label>Status</label>' +
               '<select data-field="status">' +
                 '<option value="pipeline" ' + (v.status === "pipeline" ? "selected" : "") + '>Pipeline</option>' +
