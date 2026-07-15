@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Verlags-Standardisierung Dashboard</title>
+<title>Publisher Automation Status</title>
 <script src="https://cdn.jsdelivr.net/npm/firebase@10.12.2/firebase-app-compat.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/firebase@10.12.2/firebase-database-compat.js"></script>
 <style>
@@ -120,6 +120,9 @@ main#mainContent{padding:0 20px 30px 20px;}
   .kanal-badge{background:#eef1f8;border:1px solid var(--border);border-radius:14px;padding:3px 10px;font-size:0.75rem;color:var(--text);}
   .kanal-badge b{color:var(--accent-dark);}
 
+  .inline-select-prio, .inline-select-status{border:none;border-radius:12px;padding:3px 9px;font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.3px;cursor:pointer;color:#fff;}
+  .inline-select-prio:focus, .inline-select-status:focus{outline:2px solid rgba(0,0,0,0.15);}
+
   .modal-overlay{position:fixed;inset:0;background:rgba(15,20,35,0.55);display:flex;align-items:center;justify-content:center;z-index:200;padding:20px;}
   .modal-panel{background:#fff;border-radius:14px;width:720px;max-width:100%;max-height:92vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3);}
   .modal-header{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:16px 20px;border-bottom:1px solid var(--border);position:sticky;top:0;background:#fff;z-index:5;}
@@ -222,14 +225,14 @@ main#mainContent{padding:0 20px 30px 20px;}
 
 <header class="topbar">
   <div class="topbar-row1">
-    <h1>📚 Verlags-Standardisierung Dashboard</h1>
+    <h1>📚 Publisher Automation Status</h1>
     <div class="sync-indicator"><span class="sync-dot connecting" id="syncDot"></span><span id="syncText">Verbinde...</span></div>
   </div>
   <div class="kpi-row" id="kpiRow"></div>
   <div class="tabs">
     <button class="tab-btn active" data-tab="kanban">Kanban-Board</button>
-    <button class="tab-btn" data-tab="reminder">🔔 Reminder</button>
-    <button class="tab-btn" data-tab="detail">📊 Detailansicht</button>
+    <button class="tab-btn" data-tab="reminder">🔔 Aufgabe & Erinnerung</button>
+    <button class="tab-btn" data-tab="detail">📊 Übersicht</button>
   </div>
 </header>
 
@@ -1278,10 +1281,36 @@ main#mainContent{padding:0 20px 30px 20px;}
       '</div>';
   }
 
+  function prioColors(p){
+    if(p === "hoch") return {bg:"var(--red)", color:"#fff"};
+    if(p === "mittel") return {bg:"var(--yellow)", color:"#4a3200"};
+    if(p === "niedrig") return {bg:"var(--green)", color:"#fff"};
+    return {bg:"var(--grey)", color:"#fff"};
+  }
+  function statusColors(s){
+    if(s === "pipeline") return {bg:"var(--grey)", color:"#fff"};
+    if(s === "austausch") return {bg:"var(--accent)", color:"#fff"};
+    if(s === "test") return {bg:"var(--yellow)", color:"#4a3200"};
+    if(s === "automatisiert") return {bg:"var(--green)", color:"#fff"};
+    return {bg:"var(--grey)", color:"#fff"};
+  }
   function renderDetailRow(id){
     var v = state.verlage[id];
     var expanded = !!state.detailExpanded[id];
     var websites = Object.keys(v.websites || {}).map(function(wid){ return v.websites[wid]; });
+    var pc = prioColors(v.prioritaet);
+    var prioSelect = '<select class="no-row-click inline-select-prio" data-field="prioritaet-inline" data-id="' + id + '" style="background:' + pc.bg + ';color:' + pc.color + ';">' +
+      '<option value="hoch" ' + (v.prioritaet === "hoch" ? "selected" : "") + '>Hoch</option>' +
+      '<option value="mittel" ' + (v.prioritaet === "mittel" ? "selected" : "") + '>Mittel</option>' +
+      '<option value="niedrig" ' + (v.prioritaet === "niedrig" ? "selected" : "") + '>Niedrig</option>' +
+    '</select>';
+    var sc = statusColors(v.status);
+    var statusSelect = '<select class="no-row-click inline-select-status" data-field="status-inline" data-id="' + id + '" style="background:' + sc.bg + ';color:' + sc.color + ';">' +
+      '<option value="pipeline" ' + (v.status === "pipeline" ? "selected" : "") + '>Pipeline</option>' +
+      '<option value="austausch" ' + (v.status === "austausch" ? "selected" : "") + '>Austausch</option>' +
+      '<option value="test" ' + (v.status === "test" ? "selected" : "") + '>Test</option>' +
+      '<option value="automatisiert" ' + (v.status === "automatisiert" ? "selected" : "") + '>Automatisiert</option>' +
+    '</select>';
     var expandRow = expanded ? (
       '<tr class="detail-expand-row" data-id="' + id + '">' +
         '<td colspan="' + DETAIL_COLUMNS.length + '">' +
@@ -1292,13 +1321,14 @@ main#mainContent{padding:0 20px 30px 20px;}
     return '' +
       '<tr class="verlag-row" data-id="' + id + '">' +
         '<td><span class="expand-arrow ' + (expanded ? "open" : "") + '">▶</span>' + esc(v.name) + '</td>' +
-        '<td><span class="prio-badge prio-' + v.prioritaet + '">' + (PRIO_LABELS[v.prioritaet] || "–") + '</span></td>' +
+        '<td>' + prioSelect + '</td>' +
         '<td>' + (v.wichtigkeitProzent !== undefined && v.wichtigkeitProzent !== null && v.wichtigkeitProzent !== "" ? Number(v.wichtigkeitProzent).toFixed(2) + " %" : "–") + '</td>' +
-        '<td><span class="status-badge status-' + v.status + '">' + (STATUS_LABELS[v.status] || "–") + '</span></td>' +
+        '<td>' + statusSelect + '</td>' +
         '<td>' + esc(personName(v.kontaktVerlag)) + '</td>' +
         '<td>' + websiteCount(v) + '</td>' +
         '<td>' + formatDate(getOldestContactDate(v)) + '</td>' +
       '</tr>' + expandRow;
+  }
   }
 
   function renderDetail(){
@@ -1491,6 +1521,7 @@ main#mainContent{padding:0 20px 30px 20px;}
 
   var detailView = document.getElementById("detailView");
   detailView.addEventListener("click", function(e){
+    if(e.target.closest(".no-row-click")) return;
     var th = e.target.closest("th[data-key]");
     if(th){
       var key = th.dataset.key;
@@ -1510,6 +1541,20 @@ main#mainContent{padding:0 20px 30px 20px;}
       renderDetail();
     }
   });
+
+  detailView.addEventListener("change", function(e){
+    var field = e.target.dataset.field;
+    if(field !== "prioritaet-inline" && field !== "status-inline") return;
+    var id = e.target.dataset.id;
+    var v = state.verlage[id];
+    if(!v) return;
+    if(field === "prioritaet-inline") v.prioritaet = e.target.value;
+    else if(field === "status-inline") v.status = e.target.value;
+    persist(id);
+    renderApp();
+  });
+
+  function __unused_oldDetailClick(e){
 
   var modalOverlay = document.getElementById("modalOverlay");
 
