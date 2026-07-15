@@ -314,6 +314,7 @@ main#mainContent{padding:0 20px 30px 20px;}
   var dbRef = null;
   var dbRef2 = null;
   var dbRefTools = null;
+  var dbRefSysteme = null;
   var storageRef = null;
   var usingFirebase = false;
   var saveTimers = {};
@@ -324,6 +325,7 @@ main#mainContent{padding:0 20px 30px 20px;}
   var state = {
     verlage: {},
     personen: {},
+    systeme: {},
     tools: {},
     filter: {search:"", status:"all", prioritaet:"all"},
     selectedId: null,
@@ -364,6 +366,12 @@ main#mainContent{padding:0 20px 30px 20px;}
     var p = state.personen[personId];
     if(!p) return "–";
     return ((p.vorname || "") + " " + (p.nachname || "")).trim() || "–";
+  }
+  function systemName(systemId){
+    if(!systemId) return "–";
+    var s = state.systeme[systemId];
+    if(!s) return "–";
+    return s.name || "–";
   }
   function workdaysSince(dateStr){
     if(!dateStr) return null;
@@ -502,7 +510,7 @@ main#mainContent{padding:0 20px 30px 20px;}
     ["Aend AG",5.18,8,[["aend.de",["Display","Exklusiv Mailing","Newsletter"]]]],
     ["MedTriX GmbH RS MEDIA",4.97,9,[["Journalhaema.de",["Display","Exklusiv Mailing","Newsletter"]],["Journalmed.de",["Display","Exklusiv Mailing","Newsletter"]],["Journalonko.de",["Display","Exklusiv Mailing","Kombi-Schaltung","Newsletter"]]]],
     ["Springer Medizin Verlag GmbH",4.33,10,[["aerztezeitung.de",["Display","Exklusiv Mailing","Newsletter"]],["instagram.com/das_pta_magazin",["Social Media"]],["springermedizin.de",["Corporate Publishing","Display","Newsletter"]],["springerpflege.de",["Newsletter"]]]],
-    ["Deutscher Apotheker Verlag GmbH",4.14,11,[["das-pta-magazin.de",["Display","Kombi-Schaltung","Newsletter","Social Media"]],["DAV Netzwerk",["Display"]],["deutsche-apotheker-zeitung.de",["Corporate Publishing","Display","Exklusiv Mailing","Kombi-Schaltung","Mobile","Newsletter","Social Media","Webinar"]],["Deutscher Apotheker Verlag DE - DAZ.online & PTAheute.de",["Display","Kombi-Schaltung","Microsite"]],["facebook.de/daz.online",["Social Media"]],["facebook.de/ptaheute",["Social Media"]],["hcm-magazin.de",["Newsletter"]],["instagram.com/ptaheute",["Social Media"]],["krankenhauspharmazie.de",["Newsletter"]],["ptaheute.de",["Display","Exklusiv Mailing","Kombi-Schaltung","Mobile","Newsletter","Social Media"]],["ptaheute.de Mobile",["Mobile"]]]],
+    ["Deutscher Apotheker Verlag GmbH",4.14,11,[["das-pta-magazin.de",["Display","Kombi-Schaltung","Newsletter","Social Media"]],["DAV Netzwerk",["Display"]],["deutsche-apotheker-zeitung.de",["Corporate Publishing","Display","Exklusiv Mailing","Kombi-Schaltung","Mobile","Newsletter","Social Media","Webinar"]],["Deutscher Apotheker Verlag DE - DAZ.online & PTAheute.de",["Display","Kombi-Schaltung","Microsite"]],["facebook.de/daz.online",["Social Media"]],["facebook.de/ptaheute",["Social Media"]],["hcm-magazin.de",["Newsletter"]],["instagram.de/ptaheute",["Social Media"]],["krankenhauspharmazie.de",["Newsletter"]],["ptaheute.de",["Display","Exklusiv Mailing","Kombi-Schaltung","Mobile","Newsletter","Social Media"]],["ptaheute.de Mobile",["Mobile"]]]],
     ["Avoxa - Mediengruppe Deutscher Apotheker GmbH",2.90,12,[["aponet.de",["Display"]],["pharmazeutische-zeitung.de",["Display","Kombi-Schaltung","Microsite","Mobile","Newsletter","Social Media"]],["ptaforum.pharmazeutische-zeitung.de",["Display","Kombi-Schaltung","Mobile","Newsletter","Social Media"]]]],
     ["MedTriX GmbH ARZT&WIRTSCHAFT",2.76,13,[["arzt-wirtschaft.de",["Display","Exklusiv Mailing","Microsite","Newsletter"]],["dental-wirtschaft.de",["Newsletter"]],["zm-online.de",["Exklusiv Mailing","Newsletter"]]]],
     ["Pharmedia GmbH",2.37,14,[["kma-online.de",["Exklusiv Mailing","Newsletter"]],["Thieme Audience Sharing",["Social Media"]],["Thieme Spotlight Multichannel",["Corporate Publishing"]],["Thieme.de",["Display","Exklusiv Mailing","Kombi-Schaltung","Newsletter"]]]],
@@ -660,6 +668,7 @@ main#mainContent{padding:0 20px 30px 20px;}
       var db = firebase.database();
       dbRef = db.ref("verlage");
       dbRef2 = db.ref("personen");
+      dbRefSysteme = db.ref("systeme");
       usingFirebase = true;
 
       db.ref(".info/connected").on("value", function(snap){
@@ -697,6 +706,20 @@ main#mainContent{padding:0 20px 30px 20px;}
         renderApp();
       }, function(err){
         console.error("Firebase Personen-Listener-Fehler:", err);
+      });
+
+      dbRefSysteme.once("value").then(function(snap){
+        state.systeme = snap.val() || {};
+        renderApp();
+      }).catch(function(err){
+        console.error("Firebase Systeme-Lesefehler:", err);
+      });
+
+      dbRefSysteme.on("value", function(snap){
+        state.systeme = snap.val() || {};
+        renderApp();
+      }, function(err){
+        console.error("Firebase Systeme-Listener-Fehler:", err);
       });
     } catch(err){
       console.error("Firebase Initialisierung fehlgeschlagen:", err);
@@ -843,6 +866,34 @@ main#mainContent{padding:0 20px 30px 20px;}
     return html;
   }
 
+  function buildSystemOptions(selectedId){
+    var list = Object.keys(state.systeme).map(function(sid){
+      var s = state.systeme[sid];
+      return {id: sid, name: s.name || ""};
+    });
+    list.sort(function(a,b){ return (a.name || "").localeCompare(b.name || ""); });
+    var html = '<option value="">–</option>';
+    html += list.map(function(s){
+      return '<option value="' + s.id + '" ' + (selectedId === s.id ? "selected" : "") + '>' + esc(s.name) + '</option>';
+    }).join("");
+    html += '<option value="__new__">+ Neues System anlegen</option>';
+    return html;
+  }
+
+  function createSystem(name){
+    var sid;
+    if(usingFirebase && dbRefSysteme){
+      var newRef = dbRefSysteme.push();
+      sid = newRef.key;
+      newRef.set({name: name}).catch(function(err){ console.error("System anlegen fehlgeschlagen:", err); });
+      state.systeme[sid] = {name: name};
+    } else {
+      sid = uid("sys");
+      state.systeme[sid] = {name: name};
+    }
+    return sid;
+  }
+
   function renderWebsite(wid, w, v){
     var dateField = "";
     var kanalSection = "";
@@ -882,22 +933,35 @@ main#mainContent{padding:0 20px 30px 20px;}
     return k.typen;
   }
 
+  function renderNewSystemForm(fieldKey){
+    return '' +
+      '<div class="new-person-form hidden" data-for="' + fieldKey + '">' +
+        '<input type="text" data-newsystem="name" placeholder="Systemname (z.B. Mailchimp, CleverReach, Adform)">' +
+        '<button type="button" data-action="create-system" data-for="' + fieldKey + '">Anlegen</button>' +
+      '</div>';
+  }
+
   function renderKanal(wid, kid, k){
     var typen = normalizeKanalTypen(k);
     var checksHtml = KANAL_TYPEN.map(function(t){
       var checked = typen.indexOf(t) !== -1 ? "checked" : "";
       return '<label><input type="checkbox" data-field="kanal-typ-check" data-wid="' + wid + '" data-kid="' + kid + '" data-typ="' + t + '" ' + checked + '><span class="pill-label">' + t + '</span></label>';
     }).join("");
+    var fieldKey = "kanal-system|" + wid + "|" + kid;
     return '' +
       '<span class="kanal-chip">' +
         '<span class="kanal-typ-checks">' + checksHtml + '</span>' +
-        '<select data-field="kanal-format" data-wid="' + wid + '" data-kid="' + kid + '">' +
-          '<option value="XLS" ' + (k.format === "XLS" ? "selected" : "") + '>XLS</option>' +
-          '<option value="CSV" ' + (k.format === "CSV" ? "selected" : "") + '>CSV</option>' +
-          '<option value="API" ' + (k.format === "API" ? "selected" : "") + '>API</option>' +
-        '</select>' +
-        '<input type="text" data-field="kanal-link" data-wid="' + wid + '" data-kid="' + kid + '" value="' + esc(k.beispielLink || "") + '" placeholder="Link" title="Link zur Beispiel-Reporting-Datei">' +
-        '<button data-action="remove-kanal" data-wid="' + wid + '" data-kid="' + kid + '" class="chip-remove" title="Kanal entfernen">✕</button>' +
+        '<div class="kanal-chip-row2">' +
+          '<select data-field="kanal-format" data-wid="' + wid + '" data-kid="' + kid + '">' +
+            '<option value="XLS" ' + (k.format === "XLS" ? "selected" : "") + '>XLS</option>' +
+            '<option value="CSV" ' + (k.format === "CSV" ? "selected" : "") + '>CSV</option>' +
+            '<option value="API" ' + (k.format === "API" ? "selected" : "") + '>API</option>' +
+          '</select>' +
+          '<select data-field="kanal-system" data-wid="' + wid + '" data-kid="' + kid + '" data-fieldkey="' + fieldKey + '">' + buildSystemOptions(k.systemId) + '</select>' +
+          '<input type="text" data-field="kanal-link" data-wid="' + wid + '" data-kid="' + kid + '" value="' + esc(k.beispielLink || "") + '" placeholder="Link" title="Link zur Beispiel-Reporting-Datei">' +
+          '<button data-action="remove-kanal" data-wid="' + wid + '" data-kid="' + kid + '" class="chip-remove" title="Kanal entfernen">✕</button>' +
+        '</div>' +
+        renderNewSystemForm(fieldKey) +
       '</span>';
   }
 
@@ -907,16 +971,21 @@ main#mainContent{padding:0 20px 30px 20px;}
       var checked = typen.indexOf(t) !== -1 ? "checked" : "";
       return '<label><input type="checkbox" data-field="gemeinsam-kanal-typ-check" data-kid="' + kid + '" data-typ="' + t + '" ' + checked + '><span class="pill-label">' + t + '</span></label>';
     }).join("");
+    var fieldKey = "gemeinsam-kanal-system|" + kid;
     return '' +
       '<span class="kanal-chip">' +
         '<span class="kanal-typ-checks">' + checksHtml + '</span>' +
-        '<select data-field="gemeinsam-kanal-format" data-kid="' + kid + '">' +
-          '<option value="XLS" ' + (k.format === "XLS" ? "selected" : "") + '>XLS</option>' +
-          '<option value="CSV" ' + (k.format === "CSV" ? "selected" : "") + '>CSV</option>' +
-          '<option value="API" ' + (k.format === "API" ? "selected" : "") + '>API</option>' +
-        '</select>' +
-        '<input type="text" data-field="gemeinsam-kanal-link" data-kid="' + kid + '" value="' + esc(k.beispielLink || "") + '" placeholder="Link" title="Link zur Beispiel-Reporting-Datei">' +
-        '<button data-action="remove-gemeinsam-kanal" data-kid="' + kid + '" class="chip-remove" title="Kanal entfernen">✕</button>' +
+        '<div class="kanal-chip-row2">' +
+          '<select data-field="gemeinsam-kanal-format" data-kid="' + kid + '">' +
+            '<option value="XLS" ' + (k.format === "XLS" ? "selected" : "") + '>XLS</option>' +
+            '<option value="CSV" ' + (k.format === "CSV" ? "selected" : "") + '>CSV</option>' +
+            '<option value="API" ' + (k.format === "API" ? "selected" : "") + '>API</option>' +
+          '</select>' +
+          '<select data-field="gemeinsam-kanal-system" data-kid="' + kid + '" data-fieldkey="' + fieldKey + '">' + buildSystemOptions(k.systemId) + '</select>' +
+          '<input type="text" data-field="gemeinsam-kanal-link" data-kid="' + kid + '" value="' + esc(k.beispielLink || "") + '" placeholder="Link" title="Link zur Beispiel-Reporting-Datei">' +
+          '<button data-action="remove-gemeinsam-kanal" data-kid="' + kid + '" class="chip-remove" title="Kanal entfernen">✕</button>' +
+        '</div>' +
+        renderNewSystemForm(fieldKey) +
       '</span>';
   }
 
@@ -1277,7 +1346,8 @@ main#mainContent{padding:0 20px 30px 20px;}
       var k = w.kanaele[kid];
       var typen = k.typen || (k.typ ? [k.typ] : []);
       var typLabel = typen.length ? typen.join(" + ") : "–";
-      return '<span class="kanal-badge"><b>' + esc(typLabel) + '</b> · ' + esc(k.format) + '</span>';
+      var systemLabel = k.systemId ? (' · ' + esc(systemName(k.systemId))) : '';
+      return '<span class="kanal-badge"><b>' + esc(typLabel) + '</b> · ' + esc(k.format) + systemLabel + '</span>';
     }).join("");
     return '' +
       '<div class="detail-website-block' + (kanaeleHtml ? ' has-kanaele' : '') + '">' +
@@ -1619,13 +1689,13 @@ main#mainContent{padding:0 20px 30px 20px;}
       if(!v.websites || !v.websites[wid]) return;
       if(!v.websites[wid].kanaele) v.websites[wid].kanaele = {};
       var newKid = uid("k");
-      v.websites[wid].kanaele[newKid] = {typen: ["Mailing"], format: "XLS", beispielLink: ""};
+      v.websites[wid].kanaele[newKid] = {typen: ["Mailing"], format: "XLS", beispielLink: "", systemId: ""};
     } else if(action === "remove-kanal"){
       if(v.websites && v.websites[wid] && v.websites[wid].kanaele) delete v.websites[wid].kanaele[kid];
     } else if(action === "add-gemeinsam-kanal"){
       if(!v.gemeinsameKanaele) v.gemeinsameKanaele = {};
       var newGkid = uid("k");
-      v.gemeinsameKanaele[newGkid] = {typen: ["Mailing"], format: "XLS", beispielLink: ""};
+      v.gemeinsameKanaele[newGkid] = {typen: ["Mailing"], format: "XLS", beispielLink: "", systemId: ""};
     } else if(action === "remove-gemeinsam-kanal"){
       if(v.gemeinsameKanaele) delete v.gemeinsameKanaele[kid];
     } else if(action === "toggle-todo"){
@@ -1654,6 +1724,29 @@ main#mainContent{padding:0 20px 30px 20px;}
       var pid = createPerson(vorname, nachname, email);
       if(forField === "kontaktVerlag") v.kontaktVerlag = pid;
       else if(forField === "zustaendigIntern") v.zustaendigIntern = pid;
+      state.modalDirty = true;
+      renderModal(true);
+      return;
+    } else if(action === "create-system"){
+      var forFieldKey = btn.dataset.for;
+      var wrapSys = btn.closest(".new-person-form");
+      if(!wrapSys) return;
+      var nameEl = wrapSys.querySelector('[data-newsystem="name"]');
+      var sysName = nameEl.value.trim();
+      if(!sysName) return;
+      var sid = createSystem(sysName);
+      var parts = forFieldKey.split("|");
+      if(parts[0] === "kanal-system"){
+        var kwid = parts[1], kkid = parts[2];
+        if(v.websites && v.websites[kwid] && v.websites[kwid].kanaele && v.websites[kwid].kanaele[kkid]){
+          v.websites[kwid].kanaele[kkid].systemId = sid;
+        }
+      } else if(parts[0] === "gemeinsam-kanal-system"){
+        var gkid = parts[1];
+        if(v.gemeinsameKanaele && v.gemeinsameKanaele[gkid]){
+          v.gemeinsameKanaele[gkid].systemId = sid;
+        }
+      }
       state.modalDirty = true;
       renderModal(true);
       return;
@@ -1712,6 +1805,32 @@ main#mainContent{padding:0 20px 30px 20px;}
     else if(field === "website-date"){ if(v.websites && v.websites[wid]) v.websites[wid].letzterKontakt = e.target.value; }
     else if(field === "kanal-format"){ if(v.websites && v.websites[wid] && v.websites[wid].kanaele[kid]) v.websites[wid].kanaele[kid].format = e.target.value; }
     else if(field === "gemeinsam-kanal-format"){ if(v.gemeinsameKanaele && v.gemeinsameKanaele[kid]) v.gemeinsameKanaele[kid].format = e.target.value; }
+    else if(field === "kanal-system"){
+      if(e.target.value === "__new__"){
+        var fieldKeyK = e.target.dataset.fieldkey;
+        var formWrapK = e.target.closest(".kanal-chip").querySelector('.new-person-form[data-for="' + fieldKeyK + '"]');
+        if(formWrapK){
+          formWrapK.classList.remove("hidden");
+          var sysInputK = formWrapK.querySelector('[data-newsystem="name"]');
+          if(sysInputK) sysInputK.focus();
+        }
+        return;
+      }
+      if(v.websites && v.websites[wid] && v.websites[wid].kanaele[kid]) v.websites[wid].kanaele[kid].systemId = e.target.value;
+    }
+    else if(field === "gemeinsam-kanal-system"){
+      if(e.target.value === "__new__"){
+        var fieldKeyG = e.target.dataset.fieldkey;
+        var formWrapG = e.target.closest(".kanal-chip").querySelector('.new-person-form[data-for="' + fieldKeyG + '"]');
+        if(formWrapG){
+          formWrapG.classList.remove("hidden");
+          var sysInputG = formWrapG.querySelector('[data-newsystem="name"]');
+          if(sysInputG) sysInputG.focus();
+        }
+        return;
+      }
+      if(v.gemeinsameKanaele && v.gemeinsameKanaele[kid]) v.gemeinsameKanaele[kid].systemId = e.target.value;
+    }
     else if(field === "kanal-typ-check"){
       if(v.websites && v.websites[wid] && v.websites[wid].kanaele[kid]){
         var kObj = v.websites[wid].kanaele[kid];
