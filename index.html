@@ -150,6 +150,20 @@ main#mainContent{padding:0 20px 30px 20px;}
   .btn-small{background:var(--accent);color:#fff;border:none;padding:6px 12px;border-radius:7px;font-size:0.8rem;cursor:pointer;font-weight:600;}
   .btn-small:hover{background:var(--accent-dark);}
   .btn-danger{background:var(--red);color:#fff;border:none;padding:8px 16px;border-radius:8px;cursor:pointer;font-weight:600;}
+  .btn-save{background:var(--green);color:#fff;border:none;padding:10px 22px;border-radius:8px;cursor:pointer;font-weight:700;font-size:0.95rem;box-shadow:0 2px 8px rgba(39,174,96,0.35);margin-left:10px;transition:background .15s,transform .1s;}
+  .btn-save:hover{background:#1e8449;}
+  .btn-save:active{transform:scale(0.97);}
+  .btn-save.saved{background:#1e8449;}
+  .modal-footer-actions{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;}
+  .dirty-indicator{font-size:0.78rem;color:var(--yellow);font-weight:700;margin-left:8px;}
+  .confirm-overlay{position:fixed;inset:0;background:rgba(10,14,25,0.6);display:flex;align-items:center;justify-content:center;z-index:400;padding:20px;}
+  .confirm-panel{background:#fff;border-radius:12px;padding:22px 24px;max-width:420px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.35);}
+  .confirm-panel p{margin:0 0 18px 0;font-size:0.95rem;color:var(--text);}
+  .confirm-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;}
+  .confirm-actions button{padding:9px 16px;border-radius:8px;border:none;cursor:pointer;font-weight:600;font-size:0.85rem;}
+  .confirm-yes{background:var(--green);color:#fff;}
+  .confirm-no{background:var(--red);color:#fff;}
+  .confirm-cancel{background:#eee;color:#333;}
   .override-toggle{background:#f4f6fb;padding:10px 12px;border-radius:8px;margin-bottom:10px;font-size:0.85rem;}
   .override-toggle label{display:flex;align-items:center;gap:8px;cursor:pointer;}
   textarea{width:100%;padding:10px;border-radius:8px;border:1px solid var(--border);font-family:inherit;font-size:0.9rem;resize:vertical;}
@@ -181,7 +195,7 @@ main#mainContent{padding:0 20px 30px 20px;}
   .kanal-typ-checks{display:flex;flex-wrap:wrap;gap:6px;align-items:center;}
   .kanal-typ-checks label{position:relative;}
   .kanal-typ-checks label input[type=checkbox]{position:absolute;opacity:0;width:0;height:0;}
-  .kanal-typ-checks label span.pill-label{display:inline-block;padding:6px 14px;border-radius:16px;font-size:0.8rem;font-weight:600;cursor:pointer;border:1px solid var(--border);background:#fff;color:var(--muted);transition:background .15s,color .15s,border-color .15s;user-select:none;}
+  .kanal-typ-checks label span.pill-label{display:inline-block;padding:6px 14px;border-radius:16px;font-size:0.8rem;font-weight:600;cursor:pointer;border:1px solid var(--border);background:#fff;color:var(--muted);transition:background .15s,color .15s,border-color .15s;user-select:none;text-transform:none;}
   .kanal-typ-checks label input[type=checkbox]:checked + span.pill-label{background:var(--accent);border-color:var(--accent);color:#fff;}
   .kanal-chip-row2{display:flex;align-items:center;gap:9px;flex-wrap:wrap;}
   .kanal-chip-row2 select{border:1px solid var(--border);background:#fff;font-size:0.82rem;padding:5px 8px;border-radius:6px;cursor:pointer;}
@@ -272,6 +286,7 @@ main#mainContent{padding:0 20px 30px 20px;}
 </main>
 
 <div id="modalOverlay" class="modal-overlay hidden"></div>
+<div id="confirmOverlay" class="confirm-overlay hidden"></div>
 
 <footer>
   ⚠️ Testmodus / Demo-Daten, echte Verlagsdaten werden im nächsten Schritt eingepflegt.
@@ -305,6 +320,8 @@ main#mainContent{padding:0 20px 30px 20px;}
     personen: {},
     filter: {search:"", status:"all", prioritaet:"all"},
     selectedId: null,
+    modalDraft: null,
+    modalDirty: false,
     currentTab: "kanban",
     draggingId: null,
     columnSort: {pipeline:"wichtigkeit-desc", austausch:"wichtigkeit-desc", test:"wichtigkeit-desc", automatisiert:"wichtigkeit-desc"},
@@ -318,6 +335,9 @@ main#mainContent{padding:0 20px 30px 20px;}
   }
   function todayISO(){
     return new Date().toISOString().slice(0,10);
+  }
+  function deepCopy(obj){
+    return JSON.parse(JSON.stringify(obj));
   }
   function esc(str){
     if(str === undefined || str === null) return "";
@@ -858,7 +878,7 @@ main#mainContent{padding:0 20px 30px 20px;}
     var typen = normalizeKanalTypen(k);
     var checksHtml = KANAL_TYPEN.map(function(t){
       var checked = typen.indexOf(t) !== -1 ? "checked" : "";
-      return '<label><input type="checkbox" data-field="kanal-typ-check" data-wid="' + wid + '" data-kid="' + kid + '" data-typ="' + t + '" ' + checked + '> ' + t + '</label>';
+      return '<label><input type="checkbox" data-field="kanal-typ-check" data-wid="' + wid + '" data-kid="' + kid + '" data-typ="' + t + '" ' + checked + '><span class="pill-label">' + t + '</span></label>';
     }).join("");
     return '' +
       '<span class="kanal-chip">' +
@@ -877,7 +897,7 @@ main#mainContent{padding:0 20px 30px 20px;}
     var typen = normalizeKanalTypen(k);
     var checksHtml = KANAL_TYPEN.map(function(t){
       var checked = typen.indexOf(t) !== -1 ? "checked" : "";
-      return '<label><input type="checkbox" data-field="gemeinsam-kanal-typ-check" data-kid="' + kid + '" data-typ="' + t + '" ' + checked + '> ' + t + '</label>';
+      return '<label><input type="checkbox" data-field="gemeinsam-kanal-typ-check" data-kid="' + kid + '" data-typ="' + t + '" ' + checked + '><span class="pill-label">' + t + '</span></label>';
     }).join("");
     return '' +
       '<span class="kanal-chip">' +
@@ -948,10 +968,13 @@ main#mainContent{padding:0 20px 30px 20px;}
       '<option value="test" ' + (v.status === "test" ? "selected" : "") + '>Test</option>' +
       '<option value="automatisiert" ' + (v.status === "automatisiert" ? "selected" : "") + '>Automatisiert</option>';
 
+    var dirtyIndicator = state.modalDirty ? '<span class="dirty-indicator">● Ungespeicherte Änderungen</span>' : '';
+
     return '' +
       '<div class="modal-panel">' +
         '<div class="modal-header">' +
           '<input type="text" class="verlag-name-input" data-field="name" value="' + esc(v.name) + '">' +
+          dirtyIndicator +
           '<button data-action="close-modal" class="btn-icon close-btn">✕</button>' +
         '</div>' +
         '<div class="modal-body">' +
@@ -1003,7 +1026,10 @@ main#mainContent{padding:0 20px 30px 20px;}
           '</div>' +
 
           '<div class="modal-footer">' +
-            '<button data-action="delete-verlag" class="btn-danger">Verlag löschen</button>' +
+            '<div class="modal-footer-actions">' +
+              '<button data-action="delete-verlag" class="btn-danger">Verlag löschen</button>' +
+              '<button data-action="save-verlag" class="btn-save" id="modalSaveBtn">💾 Speichern</button>' +
+            '</div>' +
           '</div>' +
         '</div>' +
       '</div>';
@@ -1019,7 +1045,7 @@ main#mainContent{padding:0 20px 30px 20px;}
 
   function renderModal(force){
     var overlay = document.getElementById("modalOverlay");
-    if(!state.selectedId || !state.verlage[state.selectedId]){
+    if(!state.selectedId || !state.modalDraft){
       overlay.classList.add("hidden");
       overlay.innerHTML = "";
       overlay.dataset.openId = "";
@@ -1029,22 +1055,100 @@ main#mainContent{padding:0 20px 30px 20px;}
       return;
     }
     overlay.dataset.openId = state.selectedId;
-    var v = state.verlage[state.selectedId];
-    overlay.innerHTML = renderModalHtml(state.selectedId, v);
+    overlay.innerHTML = renderModalHtml(state.selectedId, state.modalDraft);
     overlay.classList.remove("hidden");
   }
 
   function openModal(id){
+    if(!state.verlage[id]) return;
     state.selectedId = id;
+    state.modalDraft = deepCopy(state.verlage[id]);
+    state.modalDirty = false;
     document.getElementById("modalOverlay").dataset.openId = "";
     renderModal(true);
   }
   function closeModal(){
     state.selectedId = null;
+    state.modalDraft = null;
+    state.modalDirty = false;
     var overlay = document.getElementById("modalOverlay");
     overlay.classList.add("hidden");
     overlay.innerHTML = "";
     overlay.dataset.openId = "";
+  }
+
+  function saveModalDraft(andClose){
+    var id = state.selectedId;
+    if(!id || !state.modalDraft) return;
+    state.verlage[id] = deepCopy(state.modalDraft);
+    persist(id);
+    state.modalDirty = false;
+    renderApp();
+    if(andClose){
+      closeModal();
+    } else {
+      var btn = document.getElementById("modalSaveBtn");
+      if(btn){
+        var original = btn.textContent;
+        btn.textContent = "✓ Gespeichert";
+        btn.classList.add("saved");
+        setTimeout(function(){
+          if(btn && btn.isConnected){
+            btn.textContent = original;
+            btn.classList.remove("saved");
+          }
+        }, 1200);
+      }
+    }
+  }
+
+  function showConfirmDialog(message, onYes, onNo, onCancel){
+    var overlay = document.getElementById("confirmOverlay");
+    overlay.innerHTML =
+      '<div class="confirm-panel">' +
+        '<p>' + esc(message) + '</p>' +
+        '<div class="confirm-actions">' +
+          '<button class="confirm-cancel" data-confirm="cancel">Abbrechen</button>' +
+          '<button class="confirm-no" data-confirm="no">Nein, verwerfen</button>' +
+          '<button class="confirm-yes" data-confirm="yes">Ja, speichern</button>' +
+        '</div>' +
+      '</div>';
+    overlay.classList.remove("hidden");
+
+    function handler(e){
+      var btn = e.target.closest("[data-confirm]");
+      if(!btn){
+        if(e.target.id === "confirmOverlay"){
+          overlay.classList.add("hidden");
+          overlay.innerHTML = "";
+          overlay.removeEventListener("click", handler);
+          if(onCancel) onCancel();
+        }
+        return;
+      }
+      var choice = btn.dataset.confirm;
+      overlay.classList.add("hidden");
+      overlay.innerHTML = "";
+      overlay.removeEventListener("click", handler);
+      if(choice === "yes" && onYes) onYes();
+      else if(choice === "no" && onNo) onNo();
+      else if(choice === "cancel" && onCancel) onCancel();
+    }
+    overlay.addEventListener("click", handler);
+  }
+
+  function attemptCloseModal(){
+    if(!state.selectedId) return;
+    if(!state.modalDirty){
+      closeModal();
+      return;
+    }
+    showConfirmDialog(
+      "Möchten Sie die Änderungen speichern?",
+      function(){ saveModalDraft(true); },
+      function(){ closeModal(); },
+      function(){ /* Abbrechen: Modal bleibt offen */ }
+    );
   }
 
   function computeReminders(){
@@ -1294,11 +1398,39 @@ main#mainContent{padding:0 20px 30px 20px;}
   });
 
   document.getElementById("resetWebsitesBtn").addEventListener("click", function(){
-    var ok = window.confirm("Fehlende Website-Namen aus den Stammdaten ergänzen? Bereits vorhandene Websites und Kanäle bleiben unverändert.");
-    if(ok){
+    showConfirmDialogSimple("Fehlende Website-Namen aus den Stammdaten ergänzen? Bereits vorhandene Websites und Kanäle bleiben unverändert.", function(){
       restoreWebsitesFromSeed();
-    }
+    });
   });
+
+  function showConfirmDialogSimple(message, onOk){
+    var overlay = document.getElementById("confirmOverlay");
+    overlay.innerHTML =
+      '<div class="confirm-panel">' +
+        '<p>' + esc(message) + '</p>' +
+        '<div class="confirm-actions">' +
+          '<button class="confirm-cancel" data-confirm="cancel">Abbrechen</button>' +
+          '<button class="confirm-yes" data-confirm="ok">OK</button>' +
+        '</div>' +
+      '</div>';
+    overlay.classList.remove("hidden");
+    function handler(e){
+      var btn = e.target.closest("[data-confirm]");
+      if(!btn){
+        if(e.target.id === "confirmOverlay"){
+          overlay.classList.add("hidden");
+          overlay.innerHTML = "";
+          overlay.removeEventListener("click", handler);
+        }
+        return;
+      }
+      overlay.classList.add("hidden");
+      overlay.innerHTML = "";
+      overlay.removeEventListener("click", handler);
+      if(btn.dataset.confirm === "ok" && onOk) onOk();
+    }
+    overlay.addEventListener("click", handler);
+  }
 
   var kanbanView = document.getElementById("kanbanView");
 
@@ -1397,27 +1529,36 @@ main#mainContent{padding:0 20px 30px 20px;}
 
   modalOverlay.addEventListener("click", function(e){
     if(e.target.id === "modalOverlay"){
-      closeModal();
+      attemptCloseModal();
       return;
     }
     var btn = e.target.closest("[data-action]");
     if(!btn) return;
     var action = btn.dataset.action;
 
-    if(action === "close-modal"){ closeModal(); return; }
+    if(action === "close-modal"){ attemptCloseModal(); return; }
+
+    if(action === "save-verlag"){
+      saveModalDraft(true);
+      return;
+    }
 
     var id = state.selectedId;
-    if(!id || !state.verlage[id]) return;
-    var v = state.verlage[id];
+    if(!id || !state.modalDraft) return;
+    var v = state.modalDraft;
     var wid = btn.dataset.wid;
     var kid = btn.dataset.kid;
     var tid = btn.dataset.tid;
 
     if(action === "delete-verlag"){
-      delete state.verlage[id];
-      state.selectedId = null;
-      removeVerlagRemote(id);
-      renderApp();
+      showConfirmDialogSimple("Verlag wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.", function(){
+        delete state.verlage[id];
+        removeVerlagRemote(id);
+        state.selectedId = null;
+        state.modalDraft = null;
+        state.modalDirty = false;
+        renderApp();
+      });
       return;
     } else if(action === "toggle-override"){
       v.websitesUnabhaengig = !v.websitesUnabhaengig;
@@ -1466,23 +1607,23 @@ main#mainContent{padding:0 20px 30px 20px;}
       var pid = createPerson(vorname, nachname, email);
       if(forField === "kontaktVerlag") v.kontaktVerlag = pid;
       else if(forField === "zustaendigIntern") v.zustaendigIntern = pid;
-      renderApp();
-      persist(id);
+      state.modalDirty = true;
+      renderModal(true);
       return;
     } else {
       return;
     }
 
-    renderApp();
-    persist(id);
+    state.modalDirty = true;
+    renderModal(true);
   });
 
   modalOverlay.addEventListener("input", function(e){
     var field = e.target.dataset.field;
     if(!field) return;
     var id = state.selectedId;
-    if(!id || !state.verlage[id]) return;
-    var v = state.verlage[id];
+    if(!id || !state.modalDraft) return;
+    var v = state.modalDraft;
     var wid = e.target.dataset.wid;
     var kid = e.target.dataset.kid;
 
@@ -1493,16 +1634,16 @@ main#mainContent{padding:0 20px 30px 20px;}
     else if(field === "gemeinsam-kanal-link"){ if(v.gemeinsameKanaele && v.gemeinsameKanaele[kid]) v.gemeinsameKanaele[kid].beispielLink = e.target.value; }
     else return;
 
-    renderApp();
-    persist(id);
+    state.modalDirty = true;
+    renderModal(false);
   });
 
   modalOverlay.addEventListener("change", function(e){
     var field = e.target.dataset.field;
     if(!field) return;
     var id = state.selectedId;
-    if(!id || !state.verlage[id]) return;
-    var v = state.verlage[id];
+    if(!id || !state.modalDraft) return;
+    var v = state.modalDraft;
     var wid = e.target.dataset.wid;
     var kid = e.target.dataset.kid;
 
@@ -1552,12 +1693,16 @@ main#mainContent{padding:0 20px 30px 20px;}
     }
     else return;
 
-    renderApp();
-    persist(id);
+    state.modalDirty = true;
+    renderModal(true);
   });
 
   document.addEventListener("keydown", function(e){
-    if(e.key === "Escape" && state.selectedId) closeModal();
+    if(e.key === "Escape" && state.selectedId){
+      var confirmOverlay = document.getElementById("confirmOverlay");
+      if(!confirmOverlay.classList.contains("hidden")) return;
+      attemptCloseModal();
+    }
   });
 
   document.getElementById("reminderView").addEventListener("click", function(e){
