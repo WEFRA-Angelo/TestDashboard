@@ -3,801 +3,1785 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Verlags-Standardisierung Dashboard</title>
-<script src="https://cdn.jsdelivr.net/npm/firebase@10.12.5/firebase-app-compat.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/firebase@10.12.5/firebase-database-compat.js"></script>
+<title>Publisher Automation Status</title>
+<script src="https://cdn.jsdelivr.net/npm/firebase@10.12.2/firebase-app-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/firebase@10.12.2/firebase-database-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/firebase@10.12.2/firebase-storage-compat.js"></script>
 <style>
-  * { box-sizing: border-box; }
-  body { margin:0; font-family: "Segoe UI", Arial, sans-serif; background:#f2f4f8; color:#1f2937; }
-  header.app-header { background:#0f2540; color:#fff; padding:14px 22px; display:flex; align-items:center; gap:18px; flex-wrap:wrap; }
-  header.app-header h1 { font-size:18px; margin:0; margin-right:auto; }
-  header.app-header input[type="text"] { padding:8px 12px; border-radius:8px; border:1px solid #33547a; background:#16324f; color:#fff; min-width:220px; }
-  header.app-header input[type="text"]::placeholder { color:#9db4cc; }
-  .btn-primary, .btn-add, .btn-secondary-sm, .btn-danger-sm, .btn-close {
-    cursor:pointer; border:none; border-radius:7px; font-size:13px; padding:7px 12px; font-weight:600;
+  :root{
+    --bg:#f2f4f8;
+    --card-bg:#ffffff;
+    --text:#1f2733;
+    --muted:#6b7688;
+    --border:#e1e5eb;
+    --accent:#3a5ded;
+    --accent-dark:#2c46c4;
+    --red:#e74c3c;
+    --yellow:#f2a93b;
+    --green:#27ae60;
+    --grey:#9aa4b2;
+    --radius:12px;
+    --shadow:0 2px 8px rgba(20,30,60,0.08);
+    --shadow-hover:0 6px 18px rgba(20,30,60,0.16);
   }
-  .btn-primary { background:#2f7ae0; color:#fff; }
-  .btn-add { background:#e7f0fe; color:#2f5fae; border:1px dashed #9dbcec; margin-top:10px; width:100%; }
-  .btn-secondary-sm { background:#eef1f5; color:#1f2937; }
-  .btn-danger-sm { background:#ffe4e4; color:#b3261e; }
-  .btn-close { background:#eee; color:#333; width:30px; height:30px; border-radius:50%; }
-
-  .stats-bar { display:flex; gap:10px; padding:10px 22px; flex-wrap:wrap; }
-  .stat-pill { background:#fff; border-radius:20px; padding:6px 14px; font-size:12px; box-shadow:0 1px 3px rgba(0,0,0,.08); }
-  .stat-pill b { color:#0f2540; }
-
-  #board { display:flex; gap:14px; padding:6px 22px 30px; overflow-x:auto; align-items:flex-start; }
-  .column { background:#e7ebf1; border-radius:12px; min-width:270px; max-width:270px; padding:10px; flex-shrink:0; }
-  .column-head { display:flex; align-items:center; justify-content:space-between; padding:4px 6px 10px; }
-  .column-head h3 { margin:0; font-size:14px; color:#334155; }
-  .count-badge { background:#0f2540; color:#fff; border-radius:10px; padding:1px 9px; font-size:12px; }
-  .column-body { min-height:60px; display:flex; flex-direction:column; gap:8px; border-radius:8px; padding:2px; transition:background .15s; }
-  .column-body.drag-over { background:#d5e3fb; }
-
-  .card { background:#fff; border-radius:10px; padding:10px 12px; box-shadow:0 1px 4px rgba(0,0,0,.1); cursor:grab; }
-  .card:active { cursor:grabbing; }
-  .card-title { font-weight:700; font-size:13.5px; margin-bottom:4px; color:#0f2540; }
-  .card-meta { font-size:12px; color:#64748b; }
-  .reminder-badge { display:inline-block; margin-top:6px; font-size:11px; background:#fff4d6; color:#8a6100; border-radius:6px; padding:2px 7px; }
-  .reminder-badge.overdue { background:#ffdada; color:#9c1c1c; }
-
-  /* Overlays */
-  #detailOverlay, #modalOverlay { position:fixed; inset:0; display:none; z-index:50; }
-  #detailOverlay.open, #modalOverlay.open { display:flex; }
-  #detailOverlay { background:rgba(15,37,64,.35); justify-content:flex-end; }
-  #modalOverlay { background:rgba(15,37,64,.5); align-items:center; justify-content:center; padding:20px; }
-
-  .detail-box { background:#fbfcfe; width:560px; max-width:100%; height:100%; overflow-y:auto; padding:20px; box-shadow:-4px 0 18px rgba(0,0,0,.15); }
-  .detail-head { display:flex; align-items:center; gap:10px; margin-bottom:14px; }
-  .verlag-name-input { flex:1; font-size:18px; font-weight:700; border:1px solid transparent; background:transparent; padding:6px 8px; border-radius:6px; color:#0f2540; }
-  .verlag-name-input:hover, .verlag-name-input:focus { border-color:#cfd8e3; background:#fff; outline:none; }
-  .detail-head select { padding:6px 8px; border-radius:6px; border:1px solid #cfd8e3; font-size:13px; }
-  .detail-reminder { display:flex; gap:10px; align-items:center; background:#fff; border-radius:8px; padding:10px; margin-bottom:16px; flex-wrap:wrap; }
-  .detail-reminder input[type="date"], .detail-reminder input[type="text"] { padding:6px 8px; border-radius:6px; border:1px solid #cfd8e3; font-size:13px; }
-  .detail-reminder input[type="text"] { flex:1; min-width:150px; }
-
-  .website-block { background:#fff; border-radius:10px; padding:14px; margin-bottom:14px; border:1px solid #e5e9f0; }
-  .website-block.gemeinsam-block { background:#f4f8ff; border-color:#c8dbfb; }
-  .website-block-head { display:flex; align-items:center; gap:8px; margin-bottom:10px; }
-  .website-block-head h3 { margin:0; font-size:14px; flex:1; color:#1d3a63; }
-  .website-name-input { flex:1; font-size:14px; font-weight:600; padding:6px 8px; border-radius:6px; border:1px solid transparent; }
-  .website-name-input:hover, .website-name-input:focus { border-color:#cfd8e3; outline:none; }
-
-  .uebersicht h4 { margin:6px 0; font-size:12.5px; color:#475569; text-transform:uppercase; letter-spacing:.03em; }
-  table.kanal-table { width:100%; border-collapse:collapse; font-size:13px; }
-  table.kanal-table th { text-align:left; color:#94a3b8; font-weight:600; font-size:11px; padding:4px 6px; border-bottom:1px solid #eef1f5; }
-  table.kanal-table td { padding:6px; border-bottom:1px solid #f1f4f8; }
-  .kanal-badge { display:inline-block; background:#eef4ff; color:#1e4f9c; border-radius:6px; padding:3px 9px; font-size:12px; }
-  .empty-hint { color:#94a3b8; font-style:italic; font-size:12.5px; }
-
-  /* Modal */
-  .modal-box { background:#fff; border-radius:12px; width:640px; max-width:100%; max-height:88vh; display:flex; flex-direction:column; overflow:hidden; }
-  .modal-head { display:flex; align-items:center; justify-content:space-between; padding:16px 18px; border-bottom:1px solid #eef1f5; }
-  .modal-head h3 { margin:0; font-size:15px; color:#0f2540; }
-  .modal-body { padding:16px 18px; overflow-y:auto; flex:1; }
-  .modal-foot { padding:12px 18px; border-top:1px solid #eef1f5; text-align:right; }
-
-  .kanal-chip { background:#f8fafc; border:1px solid #e5e9f0; border-radius:10px; padding:12px; margin-bottom:12px; }
-  .kanal-typ-checks { display:flex; flex-wrap:wrap; gap:6px 10px; margin-bottom:8px; }
-  .pill-label { font-size:12.5px; background:#fff; border:1px solid #dce3ee; padding:4px 9px; border-radius:14px; cursor:pointer; display:inline-flex; align-items:center; gap:5px; }
-  .kanal-link-input { width:100%; padding:7px 9px; border-radius:6px; border:1px solid #dce3ee; font-size:13px; margin-bottom:8px; }
-  .kanal-chip-row2 { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
-  .kanal-chip-row2 select, .kanal-chip-row2 input.systemtyp-custom {
-    padding:7px 9px; border-radius:6px; border:1px solid #dce3ee; font-size:13px; background:#fff;
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--text);}
+  .hidden{display:none !important;}
+  header.topbar{
+    position:sticky;top:0;z-index:50;background:linear-gradient(135deg,#1f2b52,#2c46c4);
+    color:#fff;padding:14px 20px 0 20px;box-shadow:0 3px 10px rgba(0,0,0,0.15);
   }
-  .kanal-chip-row2 select { min-width:150px; }
-  .kanal-chip-row2 input.systemtyp-custom { flex:1; min-width:160px; }
+  .topbar-row1{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;}
+  .topbar-row1 h1{font-size:1.25rem;margin:0 0 8px 0;font-weight:600;}
+  .sync-indicator{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.12);padding:6px 12px;border-radius:20px;font-size:0.85rem;margin-bottom:8px;}
+  .sync-dot{width:10px;height:10px;border-radius:50%;background:var(--grey);flex-shrink:0;}
+  .sync-dot.connected{background:var(--green);}
+  .sync-dot.connecting{background:var(--yellow);animation:pulse 1s infinite;}
+  .sync-dot.offline{background:var(--red);}
+  @keyframes pulse{0%{opacity:1;}50%{opacity:0.3;}100%{opacity:1;}}
+  .kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:10px 0 12px 0;}
+  .kpi-tile{background:rgba(255,255,255,0.1);border-radius:10px;padding:10px 12px;}
+  .kpi-tile .kpi-value{font-size:1.3rem;font-weight:700;}
+  .kpi-tile .kpi-label{font-size:0.78rem;color:#dfe4f5;margin-top:2px;}
+  .kpi-tile.kpi-alert{background:rgba(231,76,60,0.35);}
+  .progress-bar-outer{width:100%;height:6px;background:rgba(255,255,255,0.25);border-radius:4px;margin-top:6px;overflow:hidden;}
+  .progress-bar-inner{height:100%;background:#4ade80;border-radius:4px;transition:width .3s;}
+  .tabs{display:flex;gap:6px;padding-top:4px;}
+  .tab-btn{background:rgba(255,255,255,0.08);border:none;color:#dfe4f5;padding:9px 18px;border-radius:8px 8px 0 0;cursor:pointer;font-size:0.9rem;}
+  .tab-btn.active{background:var(--bg);color:var(--text);font-weight:600;}
+  .toolbar{background:var(--bg);display:flex;gap:10px;flex-wrap:wrap;padding:12px 20px;align-items:center;}
+  .toolbar input[type="text"], .toolbar select{
+    padding:8px 10px;border-radius:8px;border:1px solid var(--border);font-size:0.9rem;background:#fff;
+  }
+  #searchInput{flex:1;min-width:180px;}
+  #addVerlagBtn{background:var(--accent);color:#fff;border:none;padding:9px 16px;border-radius:8px;cursor:pointer;font-weight:600;font-size:0.9rem;}
+  #addVerlagBtn:hover{background:var(--accent-dark);}
+  #resetWebsitesBtn{background:#eef1f8;color:var(--text);border:1px solid var(--border);padding:9px 16px;border-radius:8px;cursor:pointer;font-weight:600;font-size:0.9rem;}
+  #resetWebsitesBtn:hover{background:#e2e6f2;}
+  .add-form{background:#fff;margin:0 20px 12px 20px;padding:12px;border-radius:10px;display:flex;gap:8px;flex-wrap:wrap;box-shadow:var(--shadow);}
+  .add-form input{flex:1;min-width:180px;padding:8px 10px;border-radius:8px;border:1px solid var(--border);}
+  .add-form button{padding:8px 14px;border-radius:8px;border:none;cursor:pointer;font-weight:600;}
+  #confirmAddVerlag{background:var(--green);color:#fff;}
+  #cancelAddVerlag{background:#eee;color:#333;}
+main#mainContent{padding:0 20px 30px 20px;}
+  .board{display:flex;gap:16px;overflow-x:auto;padding:6px 0 16px 0;align-items:flex-start;}
+  .board-column{background:#e9ecf3;border-radius:var(--radius);min-width:290px;max-width:320px;flex:1 0 290px;display:flex;flex-direction:column;max-height:calc(100vh - 230px);}
+  .column-header{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;font-weight:700;font-size:0.95rem;border-bottom:2px solid #d7dbe6;}
+  .column-count{background:#fff;border-radius:12px;padding:2px 9px;font-size:0.8rem;color:var(--muted);}
+  .column-sort{padding:8px 14px 0 14px;}
+  .column-sort select{width:100%;padding:6px 8px;border-radius:7px;border:1px solid #cfd5e3;font-size:0.78rem;background:#fff;color:var(--text);}
+  .card-list{padding:10px;display:flex;flex-direction:column;gap:10px;overflow-y:auto;flex:1;min-height:60px;}
+  .card-list.drag-over{background:#dbe2fb;}
+  .kanban-card{background:var(--card-bg);border-radius:10px;padding:12px;box-shadow:var(--shadow);cursor:pointer;border:1px solid var(--border);transition:box-shadow .15s,transform .15s;}
+  .kanban-card:hover{box-shadow:var(--shadow-hover);transform:translateY(-1px);}
+  .kanban-card.dragging{opacity:0.4;}
+  .card-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
+  .prio-badge{font-size:0.72rem;font-weight:700;padding:3px 9px;border-radius:12px;color:#fff;text-transform:uppercase;letter-spacing:.3px;}
+  .prio-hoch{background:var(--red);}
+  .prio-mittel{background:var(--yellow);color:#4a3200;}
+  .prio-niedrig{background:var(--green);}
+  .ampel-dot{width:13px;height:13px;border-radius:50%;flex-shrink:0;box-shadow:0 0 0 2px #fff, 0 0 0 3px rgba(0,0,0,0.06);}
+  .ampel-green{background:var(--green);}
+  .ampel-yellow{background:var(--yellow);}
+  .ampel-red{background:var(--red);}
+  .ampel-grey{background:var(--grey);}
+  .card-title{margin:2px 0 8px 0;font-size:1rem;font-weight:700;}
+  .card-meta{font-size:0.82rem;color:var(--muted);display:flex;flex-direction:column;gap:3px;margin-bottom:10px;}
+  .meta-label{color:#8590a3;}
+  .card-footer{border-top:1px dashed var(--border);padding-top:8px;}
+  .status-select{width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--border);font-size:0.82rem;background:#f9fafc;}
+  .empty-hint{color:var(--muted);font-size:0.85rem;padding:8px;text-align:center;}
+  footer{text-align:center;color:var(--muted);font-size:0.8rem;padding:16px;border-top:1px solid var(--border);background:#fff;}
+
+  .kpi-tile.kpi-accent{background:linear-gradient(135deg,#27ae60,#1e8449);box-shadow:0 0 0 1px rgba(255,255,255,0.2) inset;}
+  .kpi-tile.kpi-accent .kpi-value{font-size:1.5rem;}
+
+  .detail-wrap{background:#fff;border-radius:12px;box-shadow:var(--shadow);overflow:auto;max-height:calc(100vh - 260px);}
+  table.detail-table{width:100%;border-collapse:collapse;font-size:0.87rem;}
+  table.detail-table thead th{position:sticky;top:0;background:#eef1f8;z-index:3;text-align:left;padding:10px 12px;font-size:0.78rem;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);cursor:pointer;border-bottom:2px solid var(--border);white-space:nowrap;}
+  table.detail-table thead th:hover{background:#e2e6f2;}
+  table.detail-table thead th.sorted{color:var(--accent);}
+  table.detail-table tbody tr.verlag-row{cursor:pointer;border-bottom:1px solid var(--border);}
+  table.detail-table tbody tr.verlag-row:nth-child(4n+1){background:#fbfcfe;}
+  table.detail-table tbody tr.verlag-row:hover{background:#eef2ff;}
+  table.detail-table td{padding:9px 12px;vertical-align:middle;}
+  .expand-arrow{display:inline-block;transition:transform .15s;margin-right:6px;color:var(--muted);}
+  .expand-arrow.open{transform:rotate(90deg);}
+  .status-badge{display:inline-block;padding:3px 10px;border-radius:12px;font-size:0.72rem;font-weight:700;color:#fff;}
+  .status-pipeline{background:var(--grey);}
+  .status-austausch{background:var(--accent);}
+  .status-test{background:var(--yellow);color:#4a3200;}
+  .status-automatisiert{background:var(--green);}
+  tr.detail-expand-row{background:#f7f8fc;}
+  tr.detail-expand-row td{padding:0 12px 14px 32px;}
+  .detail-website-block{padding:4px 0;margin-top:2px;}
+  .detail-website-block.has-kanaele{background:#fff;border:1px solid var(--border);border-radius:8px;padding:8px 10px;margin-top:6px;}
+  .detail-website-title{font-weight:700;margin-bottom:6px;font-size:0.85rem;}
+  .detail-kanal-badges{display:flex;flex-wrap:wrap;gap:6px;}
+  .kanal-badge{background:#eef1f8;border:1px solid var(--border);border-radius:14px;padding:3px 10px;font-size:0.75rem;color:var(--text);}
+  .kanal-badge b{color:var(--accent-dark);}
+
+  .inline-select-prio, .inline-select-status{border:none;border-radius:12px;padding:3px 9px;font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.3px;cursor:pointer;color:#fff;}
+  .inline-select-prio:focus, .inline-select-status:focus{outline:2px solid rgba(0,0,0,0.15);}
+
+  .modal-overlay{position:fixed;inset:0;background:rgba(15,20,35,0.55);display:flex;align-items:center;justify-content:center;z-index:200;padding:20px;}
+  .modal-panel{background:#fff;border-radius:14px;width:720px;max-width:100%;max-height:92vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3);}
+  .modal-header{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:16px 20px;border-bottom:1px solid var(--border);position:sticky;top:0;background:#fff;z-index:5;}
+  .verlag-name-input{font-size:1.1rem;font-weight:700;border:none;border-bottom:2px solid transparent;flex:1;padding:4px 2px;}
+  .verlag-name-input:focus{outline:none;border-bottom:2px solid var(--accent);}
+  .btn-icon{background:none;border:none;font-size:1.1rem;cursor:pointer;padding:4px 8px;border-radius:6px;}
+  .btn-icon:hover{background:#f0f2f7;}
+  .close-btn{font-size:1.3rem;color:var(--muted);}
+  .modal-body{padding:16px 20px 24px 20px;}
+  .field-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:18px;}
+  .field-row.person-select-wrap{position:relative;}
+  .new-person-form{background:#f4f6fb;border-radius:8px;padding:10px;margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;}
+  .new-person-form input{flex:1;min-width:110px;padding:6px 8px;border-radius:6px;border:1px solid var(--border);font-size:0.85rem;}
+  .new-person-form button{padding:6px 12px;border-radius:6px;border:none;background:var(--green);color:#fff;font-weight:600;cursor:pointer;font-size:0.82rem;}
+  .kanal-typ-checks{display:flex;flex-wrap:wrap;gap:4px;align-items:center;background:#fff;border-radius:6px;padding:1px 4px;}
+  .kanal-typ-checks label{display:flex;align-items:center;gap:2px;font-size:0.72rem;color:var(--text);cursor:pointer;white-space:nowrap;}
+  .kanal-typ-checks input{margin:0;}
+  .detail-website-line{display:flex;align-items:center;gap:8px;padding:4px 0;font-size:0.85rem;font-weight:700;}
+  .field-row{display:flex;flex-direction:column;gap:4px;}
+  .field-row.small{margin:8px 0;}
+  .field-row label{font-size:0.78rem;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.3px;}
+  .field-row input, .field-row select{padding:8px 10px;border-radius:8px;border:1px solid var(--border);font-size:0.9rem;}
+  .section{margin-bottom:22px;}
+  .section h3{display:block;width:100%;margin:0 0 10px 0;font-size:1rem;border-left:4px solid var(--accent);padding:8px 12px;background:rgba(58,93,237,0.08);border-radius:6px;box-sizing:border-box;}
+  .section-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+  .section-header.small{margin:10px 0 6px 0;}
+  .section-header h3{margin:0;}
+  .btn-small{background:var(--accent);color:#fff;border:none;padding:6px 12px;border-radius:7px;font-size:0.8rem;cursor:pointer;font-weight:600;}
+  .btn-small:hover{background:var(--accent-dark);}
+  .btn-danger{background:var(--red);color:#fff;border:none;padding:8px 16px;border-radius:8px;cursor:pointer;font-weight:600;}
+  .btn-save{background:var(--green);color:#fff;border:none;padding:10px 22px;border-radius:8px;cursor:pointer;font-weight:700;font-size:0.95rem;box-shadow:0 2px 8px rgba(39,174,96,0.35);margin-left:10px;transition:background .15s,transform .1s;}
+  .btn-save:hover{background:#1e8449;}
+  .btn-save:active{transform:scale(0.97);}
+  .btn-save.saved{background:#1e8449;}
+  .modal-footer-actions{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;}
+  .dirty-indicator{font-size:0.78rem;color:var(--yellow);font-weight:700;margin-left:8px;}
+  .confirm-overlay{position:fixed;inset:0;background:rgba(10,14,25,0.6);display:flex;align-items:center;justify-content:center;z-index:400;padding:20px;}
+  .confirm-panel{background:#fff;border-radius:12px;padding:22px 24px;max-width:420px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.35);}
+  .confirm-panel p{margin:0 0 18px 0;font-size:0.95rem;color:var(--text);}
+  .confirm-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;}
+  .confirm-actions button{padding:9px 16px;border-radius:8px;border:none;cursor:pointer;font-weight:600;font-size:0.85rem;}
+  .confirm-yes{background:var(--green);color:#fff;}
+  .confirm-no{background:var(--red);color:#fff;}
+  .confirm-cancel{background:#eee;color:#333;}
+  .override-toggle{background:#f4f6fb;padding:10px 12px;border-radius:8px;margin-bottom:10px;font-size:0.85rem;}
+  .override-toggle label{display:flex;align-items:center;gap:8px;cursor:pointer;}
+  textarea{width:100%;padding:10px;border-radius:8px;border:1px solid var(--border);font-family:inherit;font-size:0.9rem;resize:vertical;}
+  .todo-list{display:flex;flex-direction:column;gap:6px;margin-bottom:10px;}
+  .todo-item{display:flex;align-items:center;gap:8px;background:#f7f8fb;padding:7px 10px;border-radius:8px;font-size:0.85rem;}
+  .todo-item.done .todo-text{text-decoration:line-through;color:var(--muted);}
+  .todo-item.todo-overdue{background:#fdeceb;}
+  .todo-text{flex:1;}
+  .todo-date{color:var(--muted);font-size:0.78rem;}
+  .add-todo-row{display:flex;gap:6px;flex-wrap:wrap;}
+  .add-todo-row input[type="text"]{flex:1;min-width:150px;padding:7px 9px;border-radius:7px;border:1px solid var(--border);}
+  .add-todo-row input[type="date"]{padding:7px 9px;border-radius:7px;border:1px solid var(--border);}
+  .modal-footer{border-top:1px solid var(--border);padding-top:14px;text-align:right;}
+
+  /* NEUES kompaktes Website/Kanal-Layout */
+  .website-list{display:flex;flex-direction:column;gap:2px;}
+  .website-block{border-bottom:1px solid var(--border);padding:6px 2px;}
+  .website-block:last-child{border-bottom:none;}
+  .website-row{display:flex;justify-content:space-between;align-items:center;gap:8px;}
+  .website-name-line{display:flex;align-items:center;gap:6px;flex:1;min-width:0;}
+  .website-name-input{border:none;background:transparent;font-weight:600;font-size:0.88rem;padding:3px 4px;flex:1;min-width:0;border-radius:5px;}
+  .website-name-input:focus{outline:none;background:#fff;box-shadow:0 0 0 1px var(--accent);}
+  .website-actions{display:flex;align-items:center;gap:4px;flex-shrink:0;}
+  .website-actions .btn-small{padding:4px 10px;font-size:0.75rem;}
+  .website-date-inline input[type=date]{padding:3px 5px;font-size:0.75rem;border-radius:6px;border:1px solid var(--border);}
+  .kanal-chips-wrap{display:flex;flex-direction:column;gap:0;padding:2px 0;}
+  .kanal-chip{background:#f7f8fb;border-radius:8px;padding:10px;margin-bottom:6px;display:flex;flex-direction:column;gap:8px;}
+  .kanal-chip:last-child{margin-bottom:0;}
+  .kanal-typ-checks{display:flex;flex-wrap:wrap;gap:6px;align-items:center;}
+  .kanal-typ-checks label{position:relative;}
+  .kanal-typ-checks label input[type=checkbox]{position:absolute;opacity:0;width:0;height:0;}
+  .kanal-typ-checks label span.pill-label{display:inline-block;padding:6px 14px;border-radius:16px;font-size:0.8rem;font-weight:600;cursor:pointer;border:1px solid var(--border);background:#fff;color:var(--muted);transition:background .15s,color .15s,border-color .15s;user-select:none;text-transform:none;}
+  .kanal-typ-checks label input[type=checkbox]:checked + span.pill-label{background:var(--accent);border-color:var(--accent);color:#fff;}
+  .kanal-chip-row2{display:flex;align-items:center;gap:9px;flex-wrap:wrap;}
+  .kanal-chip-row2 select{border:1px solid var(--border);background:#fff;font-size:0.82rem;padding:5px 8px;border-radius:6px;cursor:pointer;}
+  .kanal-chip-row2 input[type=text]{border:1px solid var(--border);background:#fff;font-size:0.82rem;padding:5px 8px;border-radius:6px;flex:1;min-width:120px;}
+  .kanal-chip-row2 .chip-remove{background:none;border:none;cursor:pointer;color:var(--muted);font-size:0.95rem;padding:4px 6px;line-height:1;border-radius:6px;}
+  .kanal-chip-row2 .chip-remove:hover{color:#fff;background:var(--red);}
+  .reminder-view{display:flex;flex-direction:column;gap:22px;padding-top:10px;}
+  .reminder-section{background:#fff;border-radius:12px;padding:16px 18px;box-shadow:var(--shadow);}
+  .reminder-section h2{font-size:1.05rem;margin:0 0 12px 0;}
+  .reminder-list{display:flex;flex-direction:column;gap:8px;}
+  .reminder-item{display:flex;justify-content:space-between;align-items:center;gap:10px;background:#f7f8fb;padding:10px 12px;border-radius:9px;flex-wrap:wrap;}
+  .reminder-sub{color:var(--muted);font-size:0.8rem;margin-top:2px;}
+
+  @media (max-width:700px){
+    .field-grid{grid-template-columns:1fr;}
+    .board-column{min-width:82vw;max-width:82vw;}
+    .kpi-row{grid-template-columns:repeat(2,1fr);}
+    .modal-panel{width:100%;}
+    .topbar-row1 h1{font-size:1.05rem;}
+  }
 </style>
 </head>
 <body>
 
-<header class="app-header">
-  <h1>📚 Verlags-Standardisierung Dashboard</h1>
-  <input type="text" id="searchInput" placeholder="Verlag suchen…">
-  <button type="button" class="btn-primary" id="addVerlagBtn">+ Neuer Verlag</button>
+<header class="topbar">
+  <div class="topbar-row1">
+    <h1>📚 Publisher Automation Status</h1>
+    <div class="sync-indicator"><span class="sync-dot connecting" id="syncDot"></span><span id="syncText">Verbinde...</span></div>
+  </div>
+  <div class="kpi-row" id="kpiRow"></div>
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="kanban">Kanban-Board</button>
+    <button class="tab-btn" data-tab="reminder">🔔 Aufgabe & Erinnerung</button>
+    <button class="tab-btn" data-tab="detail">📊 Übersicht</button>
+  </div>
 </header>
 
-<div class="stats-bar" id="statsBar"></div>
+<div class="toolbar" id="kanbanToolbar">
+  <input id="searchInput" type="text" placeholder="🔍 Verlag, Kontakt suchen...">
+  <select id="filterStatus">
+    <option value="all">Alle Status</option>
+    <option value="pipeline">Pipeline</option>
+    <option value="austausch">Austausch</option>
+    <option value="test">Test</option>
+    <option value="automatisiert">Automatisiert</option>
+  </select>
+  <select id="filterPrio">
+    <option value="all">Alle Prioritäten</option>
+    <option value="hoch">Hoch</option>
+    <option value="mittel">Mittel</option>
+    <option value="niedrig">Niedrig</option>
+  </select>
+  <button id="addVerlagBtn">+ Neuer Verlag</button>
+  <button id="resetWebsitesBtn">🔄 Websites aus Stammdaten wiederherstellen</button>
+</div>
+<div class="add-form hidden" id="addVerlagForm">
+  <input type="text" id="newVerlagName" placeholder="Name des neuen Verlags...">
+  <button id="confirmAddVerlag">Anlegen</button>
+  <button id="cancelAddVerlag">Abbrechen</button>
+</div>
 
-<div id="board"></div>
+<main id="mainContent">
+  <section id="kanbanView" class="board">
+    <div class="board-column" data-status="pipeline">
+      <div class="column-header"><span>📋 Pipeline</span><span class="column-count" data-status="pipeline">0</span></div>
+      <div class="column-sort"><select class="col-sort-select" data-status="pipeline"></select></div>
+      <div class="card-list" data-status="pipeline"></div>
+    </div>
+    <div class="board-column" data-status="austausch">
+      <div class="column-header"><span>🔄 Austausch</span><span class="column-count" data-status="austausch">0</span></div>
+      <div class="column-sort"><select class="col-sort-select" data-status="austausch"></select></div>
+      <div class="card-list" data-status="austausch"></div>
+    </div>
+    <div class="board-column" data-status="test">
+      <div class="column-header"><span>🧪 Test</span><span class="column-count" data-status="test">0</span></div>
+      <div class="column-sort"><select class="col-sort-select" data-status="test"></select></div>
+      <div class="card-list" data-status="test"></div>
+    </div>
+    <div class="board-column" data-status="automatisiert">
+      <div class="column-header"><span>✅ Automatisiert</span><span class="column-count" data-status="automatisiert">0</span></div>
+      <div class="column-sort"><select class="col-sort-select" data-status="automatisiert"></select></div>
+      <div class="card-list" data-status="automatisiert"></div>
+    </div>
+  </section>
 
-<div id="detailOverlay"></div>
-<div id="modalOverlay"></div>
+  <section id="reminderView" class="reminder-view hidden"></section>
+  <section id="detailView" class="hidden"></section>
+</main>
+
+<div id="modalOverlay" class="modal-overlay hidden"></div>
+<div id="confirmOverlay" class="confirm-overlay hidden"></div>
+
+<footer>
+  ⚠️ Testmodus / Demo-Daten, echte Verlagsdaten werden im nächsten Schritt eingepflegt.
+</footer>
 
 <script>
 (function(){
   "use strict";
 
-  var KANAL_TYPEN = ["Mailing","Newsletter","Display","Native Ads","Social Media","Content-Kooperation","Gewinnspiel","Print-Beilage"];
-  var SYSTEM_TYPEN = ["Mailchimp","CleverReach","Brevo","Salesforce Marketing Cloud","Emarsys","Google Ad Manager","Adition","Smart AdServer","Eigenes System","Sonstiges"];
-  var FORMAT_OPTIONEN = ["XLS","CSV","PDF","API","Manuell","XML"];
-  var KANBAN_SPALTEN = ["Neu","Kontaktiert","In Abstimmung","Umgesetzt","Abgeschlossen"];
-
-  var VERLAGSNAMEN = [
-    "Axel Springer","Bauer Media Group","Gruner + Jahr","Hubert Burda Media","Bertelsmann",
-    "Funke Mediengruppe","Süddeutsche Zeitung","Frankfurter Allgemeine Zeitung","Die Zeit Verlagsgruppe","Spiegel Verlag",
-    "Handelsblatt Media Group","Wirtschaftswoche","Der Tagesspiegel","Berliner Verlag","Rheinische Post Mediengruppe",
-    "WAZ Mediengruppe","Stuttgarter Zeitung","Kölner Stadt-Anzeiger","Münchner Merkur","Augsburger Allgemeine",
-    "Nürnberger Nachrichten","Badische Zeitung","Mitteldeutsche Zeitung","Sächsische Zeitung","Thüringer Allgemeine",
-    "Ostsee-Zeitung","Nordkurier","Schwäbisches Tagblatt","Heilbronner Stimme","Rhein-Neckar-Zeitung",
-    "Mannheimer Morgen","Wiesbadener Kurier","Frankfurter Rundschau","Darmstädter Echo","Trierischer Volksfreund",
-    "Saarbrücker Zeitung","Kieler Nachrichten","Lübecker Nachrichten","Flensburger Tageblatt","Weser-Kurier",
-    "Hannoversche Allgemeine Zeitung","Braunschweiger Zeitung","Neue Osnabrücker Zeitung","Westfälische Nachrichten","Ruhr Nachrichten",
-    "Rheinische Post","Aachener Zeitung","Kölnische Rundschau","Bonner General-Anzeiger","Wiener Zeitung",
-    "Der Standard","Kurier Österreich","Salzburger Nachrichten","Tiroler Tageszeitung","Neue Zürcher Zeitung",
-    "Tages-Anzeiger","Blick","20 Minuten","Basler Zeitung","St. Galler Tagblatt",
-    "Motor Presse Stuttgart","Klambt Verlag","Ippen Digital","Madsack Mediengruppe","DuMont Mediengruppe",
-    "Verlagsgruppe Passau","Heinrich Bauer Verlag","Condé Nast Deutschland","Hearst Magazine Germany","Wunderweib Verlag",
-    "Milchstraße Verlag","Ganske Verlagsgruppe","Jahreszeiten Verlag","Ehapa Media","Egmont Group",
-    "Panini Verlag","Carlsen Verlag","Ravensburger Verlag","Cornelsen Verlag","Klett Verlag"
-  ];
-
-  function esc(s){
-    return String(s == null ? "" : s).replace(/[&<>"']/g, function(c){
-      return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c];
-    });
-  }
-
-  // ---------- Firebase ----------
   var firebaseConfig = {
     apiKey: "AIzaSyB6BpIB-v-1m9yQdqF7f8ak3VGziWyciYU",
-    databaseURL: "https://testdashboard-db-default-rtdb.europe-west1.firebasedatabase.app"
+    authDomain: "testdashboard-db.firebaseapp.com",
+    databaseURL: "https://testdashboard-db-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "testdashboard-db",
+    storageBucket: "testdashboard-db.firebasestorage.app",
+    messagingSenderId: "873738693040",
+    appId: "1:873738693040:web:fd4641d6310ec74b364e75",
+    measurementId: "G-MF0D6LMBDE"
   };
-  var fbRef = null;
-  try {
-    var fbApp = firebase.initializeApp(firebaseConfig);
-    var fbDb = firebase.database();
-    fbRef = fbDb.ref("verlage");
-  } catch(e){
-    console.warn("Firebase konnte nicht initialisiert werden, arbeite lokal.", e);
-    fbRef = null;
+
+  var dbRef = null;
+  var dbRef2 = null;
+  var dbRefTools = null;
+  var storageRef = null;
+  var usingFirebase = false;
+  var saveTimers = {};
+
+  var STATUS_LABELS = {pipeline:"Pipeline", austausch:"Austausch", test:"Test", automatisiert:"Automatisiert"};
+  var PRIO_LABELS = {hoch:"Hoch", mittel:"Mittel", niedrig:"Niedrig"};
+
+  var state = {
+    verlage: {},
+    personen: {},
+    tools: {},
+    filter: {search:"", status:"all", prioritaet:"all"},
+    selectedId: null,
+    modalDraft: null,
+    modalDirty: false,
+    currentTab: "kanban",
+    draggingId: null,
+    columnSort: {pipeline:"wichtigkeit-desc", austausch:"wichtigkeit-desc", test:"wichtigkeit-desc", automatisiert:"wichtigkeit-desc"},
+    detailSort: {key:"name", dir:"asc"},
+    detailExpanded: {},
+    newPersonOpenFor: null,
+    uploadBusy: {}
+  };
+
+  function uid(prefix){
+    return (prefix||"id") + "_" + Date.now().toString(36) + Math.random().toString(36).slice(2,9);
+  }
+  function todayISO(){
+    return new Date().toISOString().slice(0,10);
+  }
+  function deepCopy(obj){
+    return JSON.parse(JSON.stringify(obj));
+  }
+  function esc(str){
+    if(str === undefined || str === null) return "";
+    return String(str).replace(/[&<>"']/g, function(s){
+      return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[s];
+    });
+  }
+  function formatDate(iso){
+    if(!iso || iso === "9999-99-99" || iso === "0000-00-00") return "–";
+    var parts = iso.split("-");
+    if(parts.length !== 3) return iso;
+    return parts[2] + "." + parts[1] + "." + parts[0];
+  }
+  function personName(personId){
+    if(!personId) return "–";
+    var p = state.personen[personId];
+    if(!p) return "–";
+    return ((p.vorname || "") + " " + (p.nachname || "")).trim() || "–";
+  }
+  function workdaysSince(dateStr){
+    if(!dateStr) return null;
+    var start = new Date(dateStr + "T00:00:00");
+    if(isNaN(start.getTime())) return null;
+    var end = new Date();
+    end.setHours(0,0,0,0);
+    start.setHours(0,0,0,0);
+    if(start >= end) return 0;
+    var count = 0;
+    var cur = new Date(start);
+    cur.setDate(cur.getDate()+1);
+    while(cur <= end){
+      var day = cur.getDay();
+      if(day !== 0 && day !== 6) count++;
+      cur.setDate(cur.getDate()+1);
+    }
+    return count;
+  }
+  function ampelInfo(dateStr){
+    if(!dateStr) return {level:"grey", workdays:null, text:"Kein Kontaktdatum erfasst"};
+    var wd = workdaysSince(dateStr);
+    if(wd >= 3) return {level:"red", workdays:wd, text: wd + " Werktage seit letztem Kontakt – überfällig"};
+    if(wd === 2) return {level:"yellow", workdays:wd, text: wd + " Werktage seit letztem Kontakt – bald fällig"};
+    return {level:"green", workdays:wd, text: wd + " Werktag(e) seit letztem Kontakt"};
+  }
+  function getEffectiveContacts(v){
+    if(v.websitesUnabhaengig && v.websites && Object.keys(v.websites).length > 0){
+      return Object.keys(v.websites).map(function(wid){
+        var w = v.websites[wid];
+        return {label: w.name, date: w.letzterKontakt || null, isWebsite:true, wid: wid};
+      });
+    }
+    return [{label: v.name, date: v.letzterKontakt || null, isWebsite:false, wid:null}];
+  }
+  function getVerlagAmpel(v){
+    var contacts = getEffectiveContacts(v);
+    var rank = {grey:3, red:2, yellow:1, green:0};
+    var worst = null;
+    contacts.forEach(function(c){
+      var info = ampelInfo(c.date);
+      if(!worst || rank[info.level] > rank[worst.level]) worst = info;
+    });
+    return worst || {level:"grey", workdays:null, text:"Kein Datum"};
   }
 
-  var saveTimer = null;
-  function saveState(){
-    if(!fbRef) return;
-    clearTimeout(saveTimer);
-    saveTimer = setTimeout(function(){
-      try { fbRef.set(state.verlage); } catch(err){ console.warn("Speichern fehlgeschlagen", err); }
-    }, 500);
+  var SORT_OPTIONS = [
+    {value:"prio-desc", label:"Priorität (Hoch → Niedrig)"},
+    {value:"prio-asc", label:"Priorität (Niedrig → Hoch)"},
+    {value:"name-asc", label:"Name (A-Z)"},
+    {value:"name-desc", label:"Name (Z-A)"},
+    {value:"wichtigkeit-desc", label:"Wichtigkeit % (absteigend)"},
+    {value:"wichtigkeit-asc", label:"Wichtigkeit % (aufsteigend)"},
+    {value:"kontakt-asc", label:"Letzter Kontakt (älteste zuerst)"},
+    {value:"kontakt-desc", label:"Letzter Kontakt (neueste zuerst)"},
+    {value:"websites-desc", label:"Anzahl Websites (absteigend)"},
+    {value:"websites-asc", label:"Anzahl Websites (aufsteigend)"}
+  ];
+  var PRIO_RANK = {hoch:3, mittel:2, niedrig:1};
+
+  function getOldestContactDate(v){
+    var contacts = getEffectiveContacts(v);
+    var oldest = null;
+    contacts.forEach(function(c){
+      if(!c.date) { oldest = oldest || "9999-99-99"; return; }
+      if(oldest === null || c.date < oldest) oldest = c.date;
+    });
+    return oldest;
+  }
+  function websiteCount(v){
+    return v.websites ? Object.keys(v.websites).length : 0;
+  }
+  function sortVerlagIds(ids, sortKey){
+    var arr = ids.slice();
+    function val(id){ return state.verlage[id]; }
+    switch(sortKey){
+      case "prio-desc":
+        arr.sort(function(a,b){ return (PRIO_RANK[val(b).prioritaet]||0) - (PRIO_RANK[val(a).prioritaet]||0); });
+        break;
+      case "prio-asc":
+        arr.sort(function(a,b){ return (PRIO_RANK[val(a).prioritaet]||0) - (PRIO_RANK[val(b).prioritaet]||0); });
+        break;
+      case "name-asc":
+        arr.sort(function(a,b){ return (val(a).name||"").localeCompare(val(b).name||""); });
+        break;
+      case "name-desc":
+        arr.sort(function(a,b){ return (val(b).name||"").localeCompare(val(a).name||""); });
+        break;
+      case "wichtigkeit-desc":
+        arr.sort(function(a,b){ return (numOrNeg(val(b).wichtigkeitProzent)) - (numOrNeg(val(a).wichtigkeitProzent)); });
+        break;
+      case "wichtigkeit-asc":
+        arr.sort(function(a,b){ return (numOrPos(val(a).wichtigkeitProzent)) - (numOrPos(val(b).wichtigkeitProzent)); });
+        break;
+      case "kontakt-asc":
+        arr.sort(function(a,b){ return (getOldestContactDate(val(a))||"9999-99-99").localeCompare(getOldestContactDate(val(b))||"9999-99-99"); });
+        break;
+      case "kontakt-desc":
+        arr.sort(function(a,b){ return (getOldestContactDate(val(b))||"0000-00-00").localeCompare(getOldestContactDate(val(a))||"0000-00-00"); });
+        break;
+      case "websites-desc":
+        arr.sort(function(a,b){ return websiteCount(val(b)) - websiteCount(val(a)); });
+        break;
+      case "websites-asc":
+        arr.sort(function(a,b){ return websiteCount(val(a)) - websiteCount(val(b)); });
+        break;
+      default: break;
+    }
+    return arr;
+  }
+  function numOrNeg(n){ return (n === undefined || n === null || n === "") ? -1 : Number(n); }
+  function numOrPos(n){ return (n === undefined || n === null || n === "") ? 999999 : Number(n); }
+  function sortOptionsHtml(selected){
+    return SORT_OPTIONS.map(function(o){
+      return '<option value="' + o.value + '" ' + (o.value === selected ? "selected" : "") + '>' + o.label + '</option>';
+    }).join("");
   }
 
-  // ---------- Seed ----------
-  function buildSeed(){
-    var verlage = {};
-    VERLAGSNAMEN.forEach(function(name, i){
-      var id = "v" + i;
-      var slug = name.toLowerCase()
-        .replace(/ä/g,"ae").replace(/ö/g,"oe").replace(/ü/g,"ue").replace(/ß/g,"ss")
-        .replace(/[^a-z0-9]+/g,"-").replace(/(^-|-$)/g,"");
-      var status = KANBAN_SPALTEN[i % KANBAN_SPALTEN.length];
-      var websites = {};
-      var wsCount = 1 + (i % 3);
-      for(var j = 0; j < wsCount; j++){
-        var wid = "w" + i + "_" + j;
-        var kanaele = {};
-        var kCount = 1 + ((i + j) % 3);
-        for(var k = 0; k < kCount; k++){
-          var kid = "k" + i + "_" + j + "_" + k;
-          var typIdx = (i + j + k) % KANAL_TYPEN.length;
-          var formatIdx = (i + k) % FORMAT_OPTIONEN.length;
-          var hasSystem = (i + j + k) % 2 === 0;
-          var sysIdx = (i + j + k) % SYSTEM_TYPEN.length;
-          var systemTyp = hasSystem ? SYSTEM_TYPEN[sysIdx] : "";
-          var systemTypCustom = systemTyp === "Sonstiges" ? "Internes Redaktionssystem" : "";
-          kanaele[kid] = {
-            typen: [KANAL_TYPEN[typIdx]],
-            format: FORMAT_OPTIONEN[formatIdx],
-            beispielLink: (j === 0 && k === 0) ? ("https://" + slug + ".de/beispiel") : "",
-            systemTyp: systemTyp,
-            systemTypCustom: systemTypCustom
-          };
-        }
-        websites[wid] = {
-          name: (j === 0 ? (slug + ".de") : (slug + "-" + (j + 1) + ".de")),
-          kanaele: kanaele
-        };
-      }
-      var gemeinsameKanaele = {};
-      if(i % 4 === 0){
-        var gid = "g" + i + "_0";
-        gemeinsameKanaele[gid] = {
-          typen: ["Newsletter"],
-          format: "API",
-          beispielLink: "",
-          systemTyp: SYSTEM_TYPEN[i % SYSTEM_TYPEN.length],
-          systemTypCustom: ""
-        };
-      }
-      var reminder = null;
-      if(i % 7 === 0){
-        var d = new Date();
-        d.setDate(d.getDate() + (i % 14) - 7);
-        reminder = { date: d.toISOString().slice(0,10), text: "Rückfrage zur Kanalstandardisierung stellen" };
-      }
-      verlage[id] = {
-        id: id, name: name, status: status,
-        websites: websites, gemeinsameKanaele: gemeinsameKanaele, reminder: reminder
+  function setSyncStatus(status){
+    var dot = document.getElementById("syncDot");
+    var text = document.getElementById("syncText");
+    dot.className = "sync-dot " + status;
+    if(status === "connected") text.textContent = "Verbunden (Live-Sync)";
+    else if(status === "connecting") text.textContent = "Verbinde...";
+    else text.textContent = "Offline (lokaler Modus)";
+  }
+
+  var SEED_RAW = [
+    ["MedTriX GmbH Wiesbaden",13.44,1,[["diabetologie-online.de",["Display"]],["medical-tribune.de",["Corporate Publishing","Exklusiv Mailing","Kombi-Schaltung","Newsletter","Podcast"]],["recall-magazin.de",["Newsletter"]]]],
+    ["Deutscher Aerzteverlag GmbH",8.34,2,[["aerzteblatt.de",["Display","Exklusiv Mailing","Kombi-Schaltung","Newsletter","Programmatic Flight"]]]],
+    ["mgo fachverlage GmbH & Co. KG",8.27,3,[["aerztliches-journal.de",["Exklusiv Mailing"]],["allgemeinarzt.digital",["Display","Exklusiv Mailing","Newsletter"]],["concept-ophthalmologie.de",["Display","Exklusiv Mailing","Newsletter"]],["dermaaktuell.de",["Exklusiv Mailing","Newsletter"]],["diabetes-heute.info",["Exklusiv Mailing","Newsletter"]],["gyne-fachzeitschrift.de",["Display","Exklusiv Mailing","Newsletter"]],["herzmedizin.info",["Exklusiv Mailing","Newsletter"]],["homoeopathie-zeitschrift.de",["Exklusiv Mailing","Newsletter"]],["ku-gesundheitsmanagement.de",["Newsletter"]],["mgo-dental.de",["Newsletter"]],["naturheilkunde-kompakt.de",["Display","Exklusiv Mailing","Newsletter"]],["neuroaktuell.de",["Display","Exklusiv Mailing","Newsletter"]],["onkologie-heute.info",["Exklusiv Mailing","Newsletter"]],["paediatrische-praxis.info",["Exklusiv Mailing","Newsletter"]],["uroforum.de",["Exklusiv Mailing","Newsletter"]]]],
+    ["MEDCON HEALTH CONTENTS GmbH",7.45,4,[["biermann-medizin.de",["Display","Exklusiv Mailing","Newsletter"]]]],
+    ["esanum GmbH",6.59,5,[["esanum.de",["Display","Exklusiv Mailing","Microsite","Newsletter","Umfrage","Webinar"]]]],
+    ["DocCheck Community GmbH",6.26,6,[["doccheck.com",["Corporate Publishing","Display","Exklusiv Mailing","Kombi-Schaltung","Newsletter","Umfrage","Video Flight"]]]],
+    ["Vidal MMI Germany",6.07,7,[["gelbe-liste.de",["Display","Exklusiv Mailing","Newsletter"]]]],
+    ["Aend AG",5.18,8,[["aend.de",["Display","Exklusiv Mailing","Newsletter"]]]],
+    ["MedTriX GmbH RS MEDIA",4.97,9,[["Journalhaema.de",["Display","Exklusiv Mailing","Newsletter"]],["Journalmed.de",["Display","Exklusiv Mailing","Newsletter"]],["Journalonko.de",["Display","Exklusiv Mailing","Kombi-Schaltung","Newsletter"]]]],
+    ["Springer Medizin Verlag GmbH",4.33,10,[["aerztezeitung.de",["Display","Exklusiv Mailing","Newsletter"]],["instagram.com/das_pta_magazin",["Social Media"]],["springermedizin.de",["Corporate Publishing","Display","Newsletter"]],["springerpflege.de",["Newsletter"]]]],
+    ["Deutscher Apotheker Verlag GmbH",4.14,11,[["das-pta-magazin.de",["Display","Kombi-Schaltung","Newsletter","Social Media"]],["DAV Netzwerk",["Display"]],["deutsche-apotheker-zeitung.de",["Corporate Publishing","Display","Exklusiv Mailing","Kombi-Schaltung","Mobile","Newsletter","Social Media","Webinar"]],["Deutscher Apotheker Verlag DE - DAZ.online & PTAheute.de",["Display","Kombi-Schaltung","Microsite"]],["facebook.de/daz.online",["Social Media"]],["facebook.de/ptaheute",["Social Media"]],["hcm-magazin.de",["Newsletter"]],["instagram.com/ptaheute",["Social Media"]],["krankenhauspharmazie.de",["Newsletter"]],["ptaheute.de",["Display","Exklusiv Mailing","Kombi-Schaltung","Mobile","Newsletter","Social Media"]],["ptaheute.de Mobile",["Mobile"]]]],
+    ["Avoxa - Mediengruppe Deutscher Apotheker GmbH",2.90,12,[["aponet.de",["Display"]],["pharmazeutische-zeitung.de",["Display","Kombi-Schaltung","Microsite","Mobile","Newsletter","Social Media"]],["ptaforum.pharmazeutische-zeitung.de",["Display","Kombi-Schaltung","Mobile","Newsletter","Social Media"]]]],
+    ["MedTriX GmbH ARZT&WIRTSCHAFT",2.76,13,[["arzt-wirtschaft.de",["Display","Exklusiv Mailing","Microsite","Newsletter"]],["dental-wirtschaft.de",["Newsletter"]],["zm-online.de",["Exklusiv Mailing","Newsletter"]]]],
+    ["Pharmedia GmbH",2.37,14,[["kma-online.de",["Exklusiv Mailing","Newsletter"]],["Thieme Audience Sharing",["Social Media"]],["Thieme Spotlight Multichannel",["Corporate Publishing"]],["Thieme.de",["Display","Exklusiv Mailing","Kombi-Schaltung","Newsletter"]]]],
+    ["dr-ouwerkerk ag",2.09,15,[["med-congress.ch",["Exklusiv Mailing","Kombi-Schaltung"]],["med-congress.info (EUR)",["Display","Exklusiv Mailing","Kombi-Schaltung"]]]],
+    ["EL PATO Medien GmbH",1.44,16,[["apotheke-adhoc.de",["Microsite","Newsletter","Social Media"]],["pta-in-love.de",["Display","Exklusiv Mailing","Kombi-Schaltung","Microsite","Newsletter","Social Media","Umfrage","Video Flight"]]]],
+    ["B2B Media Group GmbH",1.35,17,[["B2B Media Group DE - Aerzte",["Display"]],["B2B Media Group DE - Apotheker",["Display"]],["B2B Media Group DE - Hebammen",["Display"]],["B2B Media Group DE - Heilpraktiker",["Display"]],["B2B Media Group DE - RoN",["Display"]]]],
+    ["Meneiti GmbH",1.17,18,[["Orange Salamander App",["Corporate Publishing","Display","Mobile"]]]],
+    ["mm medizin + medien Verlag GmbH",1.09,19,[["hausaerztlichepraxis.digital",["Display","Exklusiv Mailing","Newsletter"]]]],
+    ["HCP Publishing Group GmbH",1.07,20,[["gyn-depesche.de",["Display","Exklusiv Mailing","Newsletter"]],["naturmed-praxis.de",["Newsletter"]],["naturpharmazie.com",["Newsletter"]],["neuro-depesche.de",["Exklusiv Mailing","Newsletter"]],["onko.news",["Display","Newsletter"]],["praxis-depesche.de",["Exklusiv Mailing","Newsletter"]]]],
+    ["coliquio GmbH",0.54,21,[["coliquio DE - Coliquio + Medscape + Univadis",["Newsletter"]],["coliquio.de",["Display","Exklusiv Mailing"]],["Extend",["Display"]]]],
+    ["Gesellschaft fuer Medizinische und Pharmazeutische Fortbildung mbH",0.51,22,[["pta-channel.de",["Display","Exklusiv Mailing","Kombi-Schaltung","Newsletter","Social Media"]]]],
+    ["PRIME PUBLIC MEDIA AG",0.51,23,[["medizinonline.ch",["Display","Exklusiv Mailing","Newsletter"]]]],
+    ["Medicom Verlags GmbH",0.50,24,[["Medicom.cc",["Display","Exklusiv Mailing","Newsletter"]]]],
+    ["West 78 Group Ltd (G-Med)",0.45,25,[["G-Med",["Display"]]]],
+    ["EYEFOX UG (haftungsbeschraenkt)",0.43,26,[["eyefox.com",["Display","Exklusiv Mailing","Kombi-Schaltung","Newsletter"]]]],
+    ["DAP Networks GmbH",0.38,27,[["deutschesapothekenportal.de",["Exklusiv Mailing","Kombi-Schaltung","Microsite","Newsletter"]]]],
+    ["MedTriX AG Basel",0.35,28,[["medical-tribune.ch",["Exklusiv Mailing","Newsletter"]],["medonline.at",["Exklusiv Mailing"]]]],
+    ["MedienCompany GmbH",0.33,29,[["mfa-heute.de",["Display","Newsletter"]],["neuromedizin.de",["Display"]]]],
+    ["WPV. Wirtschafts- und Praxisverlag GmbH",0.30,30,[["der-niedergelassene-arzt.de",["Display","Newsletter"]]]],
+    ["mhp-Verlag GmbH",0.28,31,[["mhp Verlag - Newsletter",["Exklusiv Mailing","Newsletter"]],["mhp Verlag DE - Wundmanagement Newsletter",["Newsletter"]]]],
+    ["pro anima medizin medien OHG",0.28,32,[["urologen-infoportal.de",["Exklusiv Mailing","Newsletter"]]]],
+    ["Trillium GmbH",0.26,33,[["trillium.de",["Exklusiv Mailing","Newsletter"]]]],
+    ["Umschau Zeitschriftenverlag GmbH",0.25,34,[["diepta.de",["Display","Exklusiv Mailing","Kombi-Schaltung","Newsletter","Social Media"]]]],
+    ["Dental Tribune International GmbH",0.25,35,[["de.dental-tribune.com",["Newsletter"]]]],
+    ["SoD ScreenOnDemand GmbH",0.25,36,[["SoD Netzwerk",["Display"]]]],
+    ["Universimed Cross Media Content GmbH",0.23,37,[["universimed.com/at",["Newsletter"]],["universimed.com/ch",["Display","Exklusiv Mailing","Newsletter"]]]],
+    ["Dr. Jochen Reichel",0.22,38,[["hnoinfo.com",["Newsletter"]]]],
+    ["QuaTestio GmbH",0.19,39,[["hebammen-testen.de",["Display","Exklusiv Mailing","Kombi-Schaltung","Microsite","Newsletter","Podcast","Social Media"]]]],
+    ["DIRECT-TO-PATIENT MEDIA GmbH",0.19,40,[["DIRECT-TO-PATIENT",["Exklusiv Mailing"]],["DIRECT-TO-PATIENT DE - GYN-DIRECT",["Display","Exklusiv Mailing","Newsletter"]],["gyn-direct.de",["Exklusiv Mailing"]],["paed-direct.de",["Display","Exklusiv Mailing"]]]],
+    ["Bibliomed Medizinische Verlagsgesellschaft mbH",0.16,41,[["bibliomedmanager.de",["Display","Newsletter"]],["bibliomed-pflege.de",["Display","Exklusiv Mailing","Newsletter"]]]],
+    ["EMG GmbH & Co. KG",0.16,42,[["altmeyers.org/de",["Display","Newsletter"]]]],
+    ["Publimed Medizin und Medien GmbH",0.15,43,[["frauenarzt.de",["Newsletter"]]]],
+    ["Richard Pflaum Verlag GmbH & Co. KG",0.14,44,[["forum-logopaedie.de",["Display","Exklusiv Mailing","Newsletter"]],["naturheilpraxis.de",["Display","Exklusiv Mailing","Newsletter"]]]],
+    ["Affinity Global GmbH",0.13,45,[["Opinary DE - Netzwerk",["Display"]]]],
+    ["MWI GmbH",0.11,46,[["medwiss.de",["Exklusiv Mailing","Microsite","Newsletter"]]]],
+    ["Dr. Reinhard Kaden Verlag GmbH",0.10,47,[["kaden-verlag.de",["Exklusiv Mailing","Newsletter"]]]],
+    ["andmore-Media GmbH",0.09,48,[["hivandmore.de",["Display","Newsletter"]]]],
+    ["New Business Verlag GmbH & Co. KG",0.09,49,[["healthcaremarketing.eu",["Kombi-Schaltung","Newsletter"]]]],
+    ["Springer Medizin Oesterreich",0.07,50,[["springermedizin.at",["Display","Exklusiv Mailing","Newsletter"]],["springermedizin.ch",["Display"]]]],
+    ["VAV - Verlag Axel Viola",0.07,51,[["interventionlab.net",["Exklusiv Mailing","Newsletter"]]]],
+    ["Ausbildung.de GmbH",0.06,52,[["Ausbildung.de",["Display"]]]],
+    ["Keleya Digital-Health Solution",0.06,53,[["ammely.de",["Kombi-Schaltung","Newsletter"]]]],
+    ["VDBD AKADEMIE GmbH",0.06,54,[["vdbd-akademie.de",["Newsletter"]]]],
+    ["DGU-Akademie GmbH",0.05,55,[["uro-tube.de",["Display"]]]],
+    ["Digimed Verlag GmbH",0.04,56,[["krebsgesellschaft.de",["Newsletter"]]]],
+    ["Elwin Staude Verlag GmbH",0.03,57,[["dhz.de",["Newsletter"]]]],
+    ["nitschmahler&friends GmbH",0.03,58,[["ptadigital.de",["Social Media"]]]],
+    ["MiM Verlagsgesellschaft mbH",0.03,59,[["der-privatarzt.de",["Display","Kombi-Schaltung"]]]],
+    ["Wiley UK",0.03,60,[["wiley.com",["Display"]]]],
+    ["Oemus Media AG",0.03,61,[["zwp-online.info",["Exklusiv Mailing","Newsletter"]]]],
+    ["Deutscher Hebammenverband e.V.",0.03,62,[["hebammenforum.de",["Newsletter"]]]],
+    ["DOZ-Verlag Optische Fachveroeffentlichung GmbH",0.03,63,[["doz-verlag.de",["Display","Exklusiv Mailing","Newsletter"]]]],
+    ["MEDahead Gesellschaft fuer medizinische Information m.b.H.",0.03,64,[["medmedia.at (medahead)",["Newsletter"]]]],
+    ["Galledia Fachmedien AG",0.02,65,[["schweizeroptiker.ch",["Display","Newsletter"]]]],
+    ["Medmedia.at",0.02,66,[["medmedia.at",["Newsletter"]]]],
+    ["Alfons W. Gentner Verlag GmbH",0.02,67,[["asu-arbeitsmedizin.com",["Exklusiv Mailing","Newsletter"]]]],
+    ["Gloobi.de GmbH & Co. KG",0.02,68,[["carevor9.de",["Newsletter"]]]],
+    ["Redaktion kkdirekt",0.02,69,[["krankenkassen-direkt.de",["Display","Newsletter"]]]],
+    ["partnerauge GmbH",0.02,70,[["eyebizz.de",["Display","Exklusiv Mailing","Newsletter"]]]],
+    ["Veterinaer Verlags GmbH",0.02,71,[["vetimpulse.de",["Newsletter"]]]],
+    ["MedLearning AG",0.02,72,[["cme.medlearning.de",["Webinar"]]]],
+    ["Spitta Verlag GmbH & Co. KG",0.02,73,[["dentalwelt.spitta.de",["Newsletter"]]]],
+    ["WILEY-VCH Verlag GmbH",0.02,74,[["management-krankenhaus.de",["Newsletter"]]]],
+    ["DGS mbH",0.01,75,[["dgschmerzmedizin.de",["Newsletter"]]]],
+    ["Eyepress Fachmedien GmbH",0.01,76,[["euro-focus.de",["Display","Exklusiv Mailing","Newsletter"]]]],
+    ["MT Verlag",0.01,77,[["medizin-telegramm.com",["Kombi-Schaltung","Newsletter"]]]],
+    ["Quintessenz Verlags-GmbH",0.01,78,[["quintessence-news.com",["Exklusiv Mailing","Newsletter"]]]],
+    ["optikum GmbH",0.00,79,[["optikum.at",["Display"]]]],
+    ["W. Kohlhammer GmbH",0.00,80,[["daskrankenhaus.de",["Newsletter"]]]]
+  ];
+
+  function buildSeedVerlage(){
+    var out = {};
+    SEED_RAW.forEach(function(entry){
+      var name = entry[0], wichtigkeit = entry[1], ranking = entry[2];
+      var vid = uid("v");
+      out[vid] = {
+        name: name,
+        kontaktVerlag: "",
+        zustaendigIntern: "",
+        prioritaet: "mittel",
+        status: "pipeline",
+        letzterKontakt: "",
+        websitesUnabhaengig: false,
+        notizen: "",
+        todos: [],
+        websites: {},
+        wichtigkeitProzent: wichtigkeit,
+        ranking: ranking
       };
     });
-    return verlage;
+    return out;
   }
 
-  // ---------- State ----------
-  var state = {
-    verlage: buildSeed(),
-    detailId: null,
-    modal: { open: false },
-    filterText: "",
-    modalDirty: false
-  };
-
-  // ---------- Helpers ----------
-  function kanalBadgeText(k){
-    var typen = (k.typen || []).join(", ") || "–";
-    var txt = esc(typen) + " · " + esc(k.format || "–");
-    var systemtyp = k.systemtyp || "";
-    if(systemtyp){
-      var systemLabel = systemtyp === "Sonstiges" ? (k.systemtypSonstiges || "Sonstiges") : systemtyp;
-      txt += " · " + esc(systemLabel);
+  function restoreWebsitesFromSeed(){
+    var seedByName = {};
+    SEED_RAW.forEach(function(entry){
+      seedByName[entry[0]] = entry[3] || [];
+    });
+    var updatesForFirebase = {};
+    Object.keys(state.verlage).forEach(function(vid){
+      var v = state.verlage[vid];
+      var seedWebsites = seedByName[v.name];
+      if(!seedWebsites) return;
+      if(!v.websites) v.websites = {};
+      var existingNames = {};
+      Object.keys(v.websites).forEach(function(wid){
+        var wname = v.websites[wid].name;
+        if(wname) existingNames[wname] = true;
+      });
+      seedWebsites.forEach(function(wEntry){
+        var wName = wEntry[0];
+        if(!existingNames[wName]){
+          var newWid = uid("w");
+          v.websites[newWid] = {name: wName, letzterKontakt: "", kanaele: {}};
+        }
+      });
+      updatesForFirebase[vid] = v;
+    });
+    if(usingFirebase && dbRef){
+      dbRef.update(updatesForFirebase).catch(function(err){ console.error("Website-Restore fehlgeschlagen:", err); });
     }
-    return txt;
+    renderApp();
   }
 
-  // ---------- Render: Kanal Chips (Modal) ----------
-  function renderKanal(wid, kid, k){
-    var typChecks = KANAL_TYPEN.map(function(t){
-      var checked = (k.typen && k.typen.indexOf(t) !== -1) ? "checked" : "";
-      return '<label class="pill-label"><input type="checkbox" data-field="kanal-typ" data-wid="' + wid + '" data-kid="' + kid + '" data-typ="' + esc(t) + '" ' + checked + '> ' + esc(t) + '</label>';
-    }).join("");
-
-    var formatOptions = FORMAT_OPTIONEN.map(function(f){
-      return '<option value="' + esc(f) + '" ' + (k.format === f ? "selected" : "") + '>' + esc(f) + '</option>';
-    }).join("");
-
-    var systemtyp = k.systemtyp || "";
-    var systemOptions = '<option value="">– System wählen –</option>' + SYSTEM_TYPEN.map(function(s){
-      return '<option value="' + esc(s) + '" ' + (systemtyp === s ? "selected" : "") + '>' + esc(s) + '</option>';
-    }).join("");
-
-    var sonstigesInput = "";
-    if(systemtyp === "Sonstiges"){
-      sonstigesInput = '<input type="text" class="kanal-link-input" data-field="kanal-systemtyp-sonstiges" data-wid="' + wid + '" data-kid="' + kid + '" value="' + esc(k.systemtypSonstiges || "") + '" placeholder="System eingeben...">';
+  function seedIfEmpty(){
+    if(usingFirebase && dbRef){
+      var seed = buildSeedVerlage();
+      var updates = {};
+      Object.keys(seed).forEach(function(id){ updates[id] = seed[id]; });
+      dbRef.update(updates).catch(function(err){ console.error("Seed-Import fehlgeschlagen:", err); });
+    } else {
+      state.verlage = buildSeedVerlage();
+      renderApp();
     }
-
-    return '' +
-      '<div class="kanal-chip" data-kid="' + kid + '">' +
-        '<div class="kanal-typ-checks">' + typChecks + '</div>' +
-        '<input type="text" class="kanal-link-input" data-field="kanal-link" data-wid="' + wid + '" data-kid="' + kid + '" value="' + esc(k.beispielLink || "") + '" placeholder="Beispiel-Link...">' +
-        '<div class="kanal-chip-row2">' +
-          '<select data-field="kanal-format" data-wid="' + wid + '" data-kid="' + kid + '">' + formatOptions + '</select>' +
-          '<select data-field="kanal-systemtyp" data-wid="' + wid + '" data-kid="' + kid + '">' + systemOptions + '</select>' +
-          sonstigesInput +
-          '<button type="button" class="btn-danger-sm" data-action="remove-kanal" data-wid="' + wid + '" data-kid="' + kid + '">🗑️</button>' +
-        '</div>' +
-      '</div>';
   }
 
-  function renderGemeinsamerKanal(vid, kid, k){
-    var typChecks = KANAL_TYPEN.map(function(t){
-      var checked = (k.typen && k.typen.indexOf(t) !== -1) ? "checked" : "";
-      return '<label class="pill-label"><input type="checkbox" data-field="gemeinsam-kanal-typ" data-wid="' + vid + '" data-kid="' + kid + '" data-typ="' + esc(t) + '" ' + checked + '> ' + esc(t) + '</label>';
-    }).join("");
-
-    var formatOptions = FORMAT_OPTIONEN.map(function(f){
-      return '<option value="' + esc(f) + '" ' + (k.format === f ? "selected" : "") + '>' + esc(f) + '</option>';
-    }).join("");
-
-    var systemtyp = k.systemtyp || "";
-    var systemOptions = '<option value="">– System wählen –</option>' + SYSTEM_TYPEN.map(function(s){
-      return '<option value="' + esc(s) + '" ' + (systemtyp === s ? "selected" : "") + '>' + esc(s) + '</option>';
-    }).join("");
-
-    var sonstigesInput = "";
-    if(systemtyp === "Sonstiges"){
-      sonstigesInput = '<input type="text" class="kanal-link-input" data-field="gemeinsam-kanal-systemtyp-sonstiges" data-wid="' + vid + '" data-kid="' + kid + '" value="' + esc(k.systemtypSonstiges || "") + '" placeholder="System eingeben...">';
+  function fallbackLocal(){
+    usingFirebase = false;
+    setSyncStatus("offline");
+    if(Object.keys(state.verlage).length === 0){
+      state.verlage = buildSeedVerlage();
     }
-
-    return '' +
-      '<div class="kanal-chip" data-kid="' + kid + '">' +
-        '<div class="kanal-typ-checks">' + typChecks + '</div>' +
-        '<input type="text" class="kanal-link-input" data-field="gemeinsam-kanal-link" data-wid="' + vid + '" data-kid="' + kid + '" value="' + esc(k.beispielLink || "") + '" placeholder="Beispiel-Link...">' +
-        '<div class="kanal-chip-row2">' +
-          '<select data-field="gemeinsam-kanal-format" data-wid="' + vid + '" data-kid="' + kid + '">' + formatOptions + '</select>' +
-          '<select data-field="gemeinsam-kanal-systemtyp" data-wid="' + vid + '" data-kid="' + kid + '">' + systemOptions + '</select>' +
-          sonstigesInput +
-          '<button type="button" class="btn-danger-sm" data-action="remove-gemeinsam-kanal" data-wid="' + vid + '" data-kid="' + kid + '">🗑️</button>' +
-        '</div>' +
-      '</div>';
+    renderApp();
   }
 
-  // ---------- Render: Detail Website Block (Übersicht) ----------
-  function renderDetailWebsiteBlock(vid, wid, w){
-    var rows = Object.keys(w.kanaele || {}).map(function(kid){
-      var k = w.kanaele[kid];
-      var linkHtml = k.beispielLink ? ('<a href="' + esc(k.beispielLink) + '" target="_blank" rel="noopener">Link</a>') : "–";
-      return '<tr><td><span class="kanal-badge">' + kanalBadgeText(k) + '</span></td><td>' + linkHtml + '</td></tr>';
-    }).join("");
-    if(!rows) rows = '<tr><td colspan="2" class="empty-hint">Keine Kanäle angelegt</td></tr>';
-
-    return '' +
-      '<div class="website-block" data-wid="' + wid + '">' +
-        '<div class="website-block-head">' +
-          '<input type="text" class="website-name-input" data-field="website-name" data-wid="' + wid + '" value="' + esc(w.name) + '">' +
-          '<button type="button" class="btn-secondary-sm" data-action="edit-kanaele" data-wid="' + wid + '">✏️ Kanäle bearbeiten</button>' +
-          '<button type="button" class="btn-danger-sm" data-action="remove-website" data-wid="' + wid + '">🗑️</button>' +
-        '</div>' +
-        '<div class="uebersicht"><h4>📊 Übersicht</h4>' +
-          '<table class="kanal-table"><thead><tr><th>Kanal</th><th>Beispiel</th></tr></thead><tbody>' + rows + '</tbody></table>' +
-        '</div>' +
-      '</div>';
-  }
-
-  function renderGemeinsamUebersicht(v){
-    var rows = Object.keys(v.gemeinsameKanaele || {}).map(function(kid){
-      var k = v.gemeinsameKanaele[kid];
-      var linkHtml = k.beispielLink ? ('<a href="' + esc(k.beispielLink) + '" target="_blank" rel="noopener">Link</a>') : "–";
-      return '<tr><td><span class="kanal-badge">' + kanalBadgeText(k) + '</span></td><td>' + linkHtml + '</td></tr>';
-    }).join("");
-    if(!rows) rows = '<tr><td colspan="2" class="empty-hint">Keine gemeinsamen Kanäle</td></tr>';
-
-    return '' +
-      '<div class="website-block gemeinsam-block">' +
-        '<div class="website-block-head">' +
-          '<h3>🔗 Gemeinsame Kanäle</h3>' +
-          '<button type="button" class="btn-secondary-sm" data-action="edit-gemeinsam">✏️ Bearbeiten</button>' +
-        '</div>' +
-        '<div class="uebersicht"><h4>📊 Übersicht</h4>' +
-          '<table class="kanal-table"><thead><tr><th>Kanal</th><th>Beispiel</th></tr></thead><tbody>' + rows + '</tbody></table>' +
-        '</div>' +
-      '</div>';
-  }
-
-  // ---------- Render: Detail Panel ----------
-  function renderDetailPanel(){
-    var overlay = document.getElementById("detailOverlay");
-    var vid = state.detailId;
-    if(!vid || !state.verlage[vid]){
-      overlay.classList.remove("open");
-      overlay.innerHTML = "";
+  function initFirebase(){
+    if(typeof firebase === "undefined"){
+      console.warn("Firebase SDK nicht verfügbar - lokaler Fallback aktiv.");
+      fallbackLocal();
       return;
     }
-    var v = state.verlage[vid];
-    overlay.classList.add("open");
+    try {
+      firebase.initializeApp(firebaseConfig);
+      var db = firebase.database();
+      dbRef = db.ref("verlage");
+      dbRef2 = db.ref("personen");
+      usingFirebase = true;
 
-    var statusOptions = KANBAN_SPALTEN.map(function(s){
-      return '<option value="' + esc(s) + '" ' + (v.status === s ? "selected" : "") + '>' + esc(s) + '</option>';
+      db.ref(".info/connected").on("value", function(snap){
+        if(snap.val() === true){ setSyncStatus("connected"); }
+        else { setSyncStatus("connecting"); }
+      });
+
+      dbRef.once("value").then(function(snap){
+        var data = snap.val();
+        if(!data || Object.keys(data).length === 0){
+          seedIfEmpty();
+        }
+      }).catch(function(err){
+        console.error("Firebase Lesefehler:", err);
+        fallbackLocal();
+      });
+
+      dbRef.on("value", function(snap){
+        state.verlage = snap.val() || {};
+        renderApp();
+      }, function(err){
+        console.error("Firebase Listener-Fehler:", err);
+        fallbackLocal();
+      });
+
+      dbRef2.once("value").then(function(snap){
+        state.personen = snap.val() || {};
+        renderApp();
+      }).catch(function(err){
+        console.error("Firebase Personen-Lesefehler:", err);
+      });
+
+      dbRef2.on("value", function(snap){
+        state.personen = snap.val() || {};
+        renderApp();
+      }, function(err){
+        console.error("Firebase Personen-Listener-Fehler:", err);
+      });
+    } catch(err){
+      console.error("Firebase Initialisierung fehlgeschlagen:", err);
+      fallbackLocal();
+    }
+  }
+
+  function persist(id){
+    clearTimeout(saveTimers[id]);
+    saveTimers[id] = setTimeout(function(){
+      if(usingFirebase && dbRef && state.verlage[id]){
+        dbRef.child(id).set(state.verlage[id]).catch(function(err){
+          console.error("Speicherfehler:", err);
+          setSyncStatus("offline");
+        });
+      }
+    }, 400);
+  }
+
+  function removeVerlagRemote(id){
+    if(usingFirebase && dbRef){
+      dbRef.child(id).remove().catch(function(err){ console.error(err); });
+    }
+  }
+
+  function renderKPIs(){
+    var el = document.getElementById("kpiRow");
+    var all = Object.keys(state.verlage).map(function(id){ return state.verlage[id]; });
+    var total = all.length;
+    var counts = {pipeline:0, austausch:0, test:0, automatisiert:0};
+    var overdueCount = 0;
+    all.forEach(function(v){
+      if(counts[v.status] !== undefined) counts[v.status]++;
+      var ampel = getVerlagAmpel(v);
+      if(ampel.level === "red") overdueCount++;
+    });
+    var pct = total > 0 ? Math.min(Math.round((counts.automatisiert / total) * 100), 100) : 0;
+    var automatisiertPct = total > 0 ? Math.round((counts.automatisiert / total) * 100) : 0;
+    el.innerHTML =
+      '<div class="kpi-tile">' +
+        '<div class="kpi-value">' + counts.automatisiert + ' / ' + total + '</div>' +
+        '<div class="kpi-label">Verlage automatisiert (Ziel)</div>' +
+        '<div class="progress-bar-outer"><div class="progress-bar-inner" style="width:' + pct + '%"></div></div>' +
+      '</div>' +
+      '<div class="kpi-tile kpi-accent">' +
+        '<div class="kpi-value">' + counts.automatisiert + '</div>' +
+        '<div class="kpi-label">Automatisiert (' + automatisiertPct + '% von gesamt)</div>' +
+      '</div>' +
+      '<div class="kpi-tile"><div class="kpi-value">' + total + '</div><div class="kpi-label">Aktuell erfasst</div></div>' +
+      '<div class="kpi-tile"><div class="kpi-value">' + counts.pipeline + '</div><div class="kpi-label">in Pipeline</div></div>' +
+      '<div class="kpi-tile"><div class="kpi-value">' + counts.austausch + '</div><div class="kpi-label">im Austausch</div></div>' +
+      '<div class="kpi-tile"><div class="kpi-value">' + counts.test + '</div><div class="kpi-label">im Test</div></div>' +
+      '<div class="kpi-tile ' + (overdueCount > 0 ? "kpi-alert" : "") + '"><div class="kpi-value">' + overdueCount + '</div><div class="kpi-label">überfällige Kontakte</div></div>';
+  }
+
+  function passesFilter(v){
+    var s = state.filter.search.trim().toLowerCase();
+    if(s){
+      var hay = ((v.name||"") + " " + personName(v.kontaktVerlag) + " " + personName(v.zustaendigIntern)).toLowerCase();
+      if(hay.indexOf(s) === -1) return false;
+    }
+    if(state.filter.status !== "all" && v.status !== state.filter.status) return false;
+    if(state.filter.prioritaet !== "all" && v.prioritaet !== state.filter.prioritaet) return false;
+    return true;
+  }
+
+  function renderCard(id, v){
+    var ampel = getVerlagAmpel(v);
+    var lastContactDisplay;
+    if(v.websitesUnabhaengig && v.websites && Object.keys(v.websites).length > 0){
+      lastContactDisplay = "siehe Websites";
+    } else {
+      lastContactDisplay = formatDate(v.letzterKontakt);
+    }
+    var statuses = ["pipeline","austausch","test","automatisiert"];
+    var options = statuses.map(function(st){
+      return '<option value="' + st + '" ' + (v.status === st ? "selected" : "") + '>' + STATUS_LABELS[st] + '</option>';
     }).join("");
 
-    var websiteBlocks = Object.keys(v.websites || {}).map(function(wid){
-      return renderDetailWebsiteBlock(vid, wid, v.websites[wid]);
-    }).join("") || '<p class="empty-hint">Noch keine Websites angelegt.</p>';
-
-    overlay.innerHTML = '' +
-      '<div class="detail-box">' +
-        '<div class="detail-head">' +
-          '<input type="text" class="verlag-name-input" data-field="verlag-name" value="' + esc(v.name) + '">' +
-          '<select data-field="verlag-status">' + statusOptions + '</select>' +
-          '<button type="button" class="btn-close" data-action="close-detail">✕</button>' +
+    return '' +
+      '<div class="kanban-card" draggable="true" data-id="' + id + '">' +
+        '<div class="card-top">' +
+          '<span class="prio-badge prio-' + v.prioritaet + '">' + (PRIO_LABELS[v.prioritaet] || "–") + '</span>' +
+          '<span class="ampel-dot ampel-' + ampel.level + '" title="' + esc(ampel.text) + '"></span>' +
         '</div>' +
-        '<div class="detail-reminder">' +
-          '<label>🔔 Reminder: <input type="date" data-field="reminder-date" value="' + esc(v.reminder && v.reminder.date || "") + '"></label>' +
-          '<input type="text" data-field="reminder-text" placeholder="Notiz..." value="' + esc(v.reminder && v.reminder.text || "") + '">' +
+        '<h3 class="card-title">' + esc(v.name) + '</h3>' +
+        '<div class="card-meta">' +
+          '<div><span class="meta-label">Verlag Kontakt:</span> ' + esc(personName(v.kontaktVerlag)) + '</div>' +
+          '<div><span class="meta-label">Zuständig:</span> ' + esc(personName(v.zustaendigIntern)) + '</div>' +
+          '<div><span class="meta-label">Letzter Kontakt:</span> ' + lastContactDisplay + '</div>' +
         '</div>' +
-        '<div class="detail-websites">' + websiteBlocks + '</div>' +
-        '<button type="button" class="btn-add" data-action="add-website">+ Website hinzufügen</button>' +
-        renderGemeinsamUebersicht(v) +
+        '<div class="card-footer no-card-click">' +
+          '<select class="status-select no-card-click">' + options + '</select>' +
+        '</div>' +
       '</div>';
   }
 
-  // ---------- Render: Modal ----------
-  function renderModalHtml(){
-    var m = state.modal;
-    if(!m || !m.open) return "";
-    var v = state.verlage[m.vid];
-    if(!v) return "";
-    var title, chipsHtml, addBtn;
+  function renderBoard(){
+    var statuses = ["pipeline","austausch","test","automatisiert"];
+    statuses.forEach(function(st){
+      var sortSelect = document.querySelector('.col-sort-select[data-status="' + st + '"]');
+      if(sortSelect && sortSelect.dataset.built !== "1"){
+        sortSelect.innerHTML = sortOptionsHtml(state.columnSort[st]);
+        sortSelect.dataset.built = "1";
+      } else if(sortSelect){
+        sortSelect.value = state.columnSort[st];
+      }
+      var listEl = document.querySelector('.card-list[data-status="' + st + '"]');
+      var countEl = document.querySelector('.column-count[data-status="' + st + '"]');
+      if(!listEl) return;
+      var entries = Object.keys(state.verlage).filter(function(id){
+        var v = state.verlage[id];
+        return v.status === st && passesFilter(v);
+      });
+      entries = sortVerlagIds(entries, state.columnSort[st]);
+      if(countEl) countEl.textContent = entries.length;
+      if(entries.length === 0){
+        listEl.innerHTML = '<p class="empty-hint">' + (Object.keys(state.verlage).length === 0 ? 'Noch keine Verlage erfasst - lege den ersten Verlag an.' : 'Keine Verlage in dieser Spalte.') + '</p>';
+        return;
+      }
+      listEl.innerHTML = entries.map(function(id){ return renderCard(id, state.verlage[id]); }).join("");
+    });
+  }
 
-    if(m.type === "website"){
-      var w = v.websites[m.wid];
-      if(!w) return "";
-      title = "Kanäle bearbeiten – " + esc(w.name);
-      chipsHtml = Object.keys(w.kanaele || {}).map(function(kid){
-        return renderKanal(m.wid, kid, w.kanaele[kid]);
-      }).join("") || '<p class="empty-hint">Noch keine Kanäle angelegt.</p>';
-      addBtn = '<button type="button" class="btn-add" data-action="add-kanal" data-wid="' + m.wid + '">+ Kanal hinzufügen</button>';
-    } else {
-      title = "Gemeinsame Kanäle bearbeiten – " + esc(v.name);
-      chipsHtml = Object.keys(v.gemeinsameKanaele || {}).map(function(kid){
-        return renderGemeinsamerKanal(m.vid, kid, v.gemeinsameKanaele[kid]);
-      }).join("") || '<p class="empty-hint">Noch keine gemeinsamen Kanäle angelegt.</p>';
-      addBtn = '<button type="button" class="btn-add" data-action="add-gemeinsam-kanal" data-wid="' + m.vid + '">+ Gemeinsamen Kanal hinzufügen</button>';
+  function changeStatus(id, newStatus){
+    var v = state.verlage[id];
+    if(!v) return;
+    v.status = newStatus;
+    renderApp();
+    persist(id);
+  }
+
+  function buildPersonOptions(selectedId){
+    var list = Object.keys(state.personen).map(function(pid){
+      var p = state.personen[pid];
+      return {id: pid, vorname: p.vorname || "", nachname: p.nachname || ""};
+    });
+    list.sort(function(a,b){ return (a.nachname || "").localeCompare(b.nachname || ""); });
+    var html = '<option value="">–</option>';
+    html += list.map(function(p){
+      return '<option value="' + p.id + '" ' + (selectedId === p.id ? "selected" : "") + '>' + esc((p.vorname + " " + p.nachname).trim()) + '</option>';
+    }).join("");
+    html += '<option value="__new__">+ Neue Person anlegen</option>';
+    return html;
+  }
+
+  function renderWebsite(wid, w, v){
+    var dateField = "";
+    var kanalSection = "";
+    if(v.websitesUnabhaengig){
+      dateField = '<span class="website-date-inline"><input type="date" data-field="website-date" data-wid="' + wid + '" value="' + (w.letzterKontakt || "") + '"></span>';
+      var kanaeleHtml = Object.keys(w.kanaele || {}).map(function(kid){
+        return renderKanal(wid, kid, w.kanaele[kid]);
+      }).join("");
+      var kanaeleRow = '<div class="kanal-chips-wrap">' + kanaeleHtml + '</div>';
+      kanalSection = kanaeleRow;
     }
 
+    var kanalBtn = v.websitesUnabhaengig ? ('<button data-action="add-kanal" data-wid="' + wid + '" class="btn-small">+ Kanal</button>') : '';
+
     return '' +
-      '<div class="modal-box">' +
-        '<div class="modal-head"><h3>' + title + '</h3><button type="button" class="btn-close" data-action="close-modal">✕</button></div>' +
-        '<div class="modal-body">' + chipsHtml + addBtn + '</div>' +
-        '<div class="modal-foot"><button type="button" class="btn-primary" data-action="close-modal">Fertig</button></div>' +
+      '<div class="website-block">' +
+        '<div class="website-row">' +
+          '<div class="website-name-line">' +
+            '<input type="text" class="website-name-input" data-field="website-name" data-wid="' + wid + '" value="' + esc(w.name) + '">' +
+            dateField +
+          '</div>' +
+          '<div class="website-actions">' +
+            kanalBtn +
+            '<button data-action="remove-website" data-wid="' + wid + '" class="btn-icon" title="Website entfernen">🗑</button>' +
+          '</div>' +
+        '</div>' +
+        kanalSection +
       '</div>';
+  }
+
+  var KANAL_TYPEN = ["Mailing","Display","Social","Kombi"];
+
+  function normalizeKanalTypen(k){
+    if(!k.typen){
+      k.typen = k.typ ? [k.typ] : [];
+    }
+    return k.typen;
+  }
+
+  function renderKanal(wid, kid, k){
+    var typen = normalizeKanalTypen(k);
+    var checksHtml = KANAL_TYPEN.map(function(t){
+      var checked = typen.indexOf(t) !== -1 ? "checked" : "";
+      return '<label><input type="checkbox" data-field="kanal-typ-check" data-wid="' + wid + '" data-kid="' + kid + '" data-typ="' + t + '" ' + checked + '><span class="pill-label">' + t + '</span></label>';
+    }).join("");
+    return '' +
+      '<span class="kanal-chip">' +
+        '<span class="kanal-typ-checks">' + checksHtml + '</span>' +
+        '<select data-field="kanal-format" data-wid="' + wid + '" data-kid="' + kid + '">' +
+          '<option value="XLS" ' + (k.format === "XLS" ? "selected" : "") + '>XLS</option>' +
+          '<option value="CSV" ' + (k.format === "CSV" ? "selected" : "") + '>CSV</option>' +
+          '<option value="API" ' + (k.format === "API" ? "selected" : "") + '>API</option>' +
+        '</select>' +
+        '<input type="text" data-field="kanal-link" data-wid="' + wid + '" data-kid="' + kid + '" value="' + esc(k.beispielLink || "") + '" placeholder="Link" title="Link zur Beispiel-Reporting-Datei">' +
+        '<button data-action="remove-kanal" data-wid="' + wid + '" data-kid="' + kid + '" class="chip-remove" title="Kanal entfernen">✕</button>' +
+      '</span>';
+  }
+
+  function renderGemeinsamerKanal(kid, k){
+    var typen = normalizeKanalTypen(k);
+    var checksHtml = KANAL_TYPEN.map(function(t){
+      var checked = typen.indexOf(t) !== -1 ? "checked" : "";
+      return '<label><input type="checkbox" data-field="gemeinsam-kanal-typ-check" data-kid="' + kid + '" data-typ="' + t + '" ' + checked + '><span class="pill-label">' + t + '</span></label>';
+    }).join("");
+    return '' +
+      '<span class="kanal-chip">' +
+        '<span class="kanal-typ-checks">' + checksHtml + '</span>' +
+        '<select data-field="gemeinsam-kanal-format" data-kid="' + kid + '">' +
+          '<option value="XLS" ' + (k.format === "XLS" ? "selected" : "") + '>XLS</option>' +
+          '<option value="CSV" ' + (k.format === "CSV" ? "selected" : "") + '>CSV</option>' +
+          '<option value="API" ' + (k.format === "API" ? "selected" : "") + '>API</option>' +
+        '</select>' +
+        '<input type="text" data-field="gemeinsam-kanal-link" data-kid="' + kid + '" value="' + esc(k.beispielLink || "") + '" placeholder="Link" title="Link zur Beispiel-Reporting-Datei">' +
+        '<button data-action="remove-gemeinsam-kanal" data-kid="' + kid + '" class="chip-remove" title="Kanal entfernen">✕</button>' +
+      '</span>';
+  }
+
+  function renderNewPersonForm(fieldName){
+    return '' +
+      '<div class="new-person-form hidden" data-for="' + fieldName + '">' +
+        '<input type="text" data-newperson="vorname" placeholder="Vorname">' +
+        '<input type="text" data-newperson="nachname" placeholder="Nachname">' +
+        '<input type="text" data-newperson="email" placeholder="E-Mail">' +
+        '<button type="button" data-action="create-person" data-for="' + fieldName + '">Anlegen</button>' +
+      '</div>';
+  }
+
+  function renderModalHtml(id, v){
+    var websitesHtml = Object.keys(v.websites || {}).map(function(wid){
+      return renderWebsite(wid, v.websites[wid], v);
+    }).join("");
+    if(!websitesHtml) websitesHtml = '<p class="empty-hint">Noch keine Website erfasst.</p>';
+
+    var kontaktStatusDateField = "";
+    var gemeinsamerKanalHtml = "";
+    if(!v.websitesUnabhaengig){
+      kontaktStatusDateField = '<div class="field-row"><label>Letzter Kontakt</label>' +
+        '<input type="date" data-field="letzterKontakt" value="' + (v.letzterKontakt || "") + '"></div>';
+      var gemeinsameKanaele = v.gemeinsameKanaele || {};
+      var gemeinsameKanaeleHtml = Object.keys(gemeinsameKanaele).map(function(kid){
+        return renderGemeinsamerKanal(kid, gemeinsameKanaele[kid]);
+      }).join("");
+      var gemeinsameKanaeleRow = gemeinsameKanaeleHtml ? ('<div class="kanal-chips-wrap">' + gemeinsameKanaeleHtml + '</div>') : '';
+      gemeinsamerKanalHtml = '' +
+        '<div class="field-row small" style="grid-column:1 / -1;">' +
+          '<div class="section-header small"><label style="margin:0;">Gemeinsame Kanäle</label><button data-action="add-gemeinsam-kanal" class="btn-small">+ Kanal</button></div>' +
+          gemeinsameKanaeleRow +
+        '</div>';
+    }
+
+    var todosSorted = (v.todos || []).slice().sort(function(a,b){
+      return (a.faellig || "9999").localeCompare(b.faellig || "9999");
+    });
+    var todosHtml = todosSorted.map(function(t){
+      return '' +
+        '<div class="todo-item ' + (t.erledigt ? "done" : "") + '">' +
+          '<input type="checkbox" data-action="toggle-todo" data-tid="' + t.id + '" ' + (t.erledigt ? "checked" : "") + '>' +
+          '<span class="todo-text">' + esc(t.text) + '</span>' +
+          '<span class="todo-date">' + (t.faellig ? formatDate(t.faellig) : "") + '</span>' +
+          '<button data-action="delete-todo" data-tid="' + t.id + '" class="btn-icon">🗑</button>' +
+        '</div>';
+    }).join("");
+    if(!todosHtml) todosHtml = '<p class="empty-hint">Keine Todos erfasst.</p>';
+
+    var kontaktVerlagOptions = buildPersonOptions(v.kontaktVerlag);
+    var zustaendigInternOptions = buildPersonOptions(v.zustaendigIntern);
+
+    var statusOptionsHtml =
+      '<option value="pipeline" ' + (v.status === "pipeline" ? "selected" : "") + '>Pipeline</option>' +
+      '<option value="austausch" ' + (v.status === "austausch" ? "selected" : "") + '>Austausch</option>' +
+      '<option value="test" ' + (v.status === "test" ? "selected" : "") + '>Test</option>' +
+      '<option value="automatisiert" ' + (v.status === "automatisiert" ? "selected" : "") + '>Automatisiert</option>';
+
+    var dirtyIndicator = state.modalDirty ? '<span class="dirty-indicator">● Ungespeicherte Änderungen</span>' : '';
+
+    return '' +
+      '<div class="modal-panel">' +
+        '<div class="modal-header">' +
+          '<input type="text" class="verlag-name-input" data-field="name" value="' + esc(v.name) + '">' +
+          dirtyIndicator +
+          '<button data-action="close-modal" class="btn-icon close-btn">✕</button>' +
+        '</div>' +
+        '<div class="modal-body">' +
+          '<div class="section">' +
+          '<h3>Kontakt & Status</h3>' +
+          '<div class="field-grid">' +
+            '<div class="field-row person-select-wrap"><label>Verlag Kontakt</label>' +
+              '<select data-field="kontaktVerlag">' + kontaktVerlagOptions + '</select>' +
+              renderNewPersonForm("kontaktVerlag") +
+            '</div>' +
+            '<div class="field-row person-select-wrap"><label>Zuständig</label>' +
+              '<select data-field="zustaendigIntern">' + zustaendigInternOptions + '</select>' +
+              renderNewPersonForm("zustaendigIntern") +
+            '</div>' +
+            '<div class="field-row"><label>Priorität</label>' +
+              '<select data-field="prioritaet">' +
+                '<option value="hoch" ' + (v.prioritaet === "hoch" ? "selected" : "") + '>Hoch</option>' +
+                '<option value="mittel" ' + (v.prioritaet === "mittel" ? "selected" : "") + '>Mittel</option>' +
+                '<option value="niedrig" ' + (v.prioritaet === "niedrig" ? "selected" : "") + '>Niedrig</option>' +
+              '</select>' +
+            '</div>' +
+            '<div class="field-row"><label>Status</label>' +
+              '<select data-field="status">' + statusOptionsHtml + '</select>' +
+            '</div>' +
+            kontaktStatusDateField +
+          '</div>' +
+            gemeinsamerKanalHtml +
+          '</div>' +
+
+          '<div class="section">' +
+            '<div class="section-header"><h3>Websites</h3><button data-action="add-website" class="btn-small">+ Website</button></div>' +
+            '<div class="override-toggle"><label><input type="checkbox" data-action="toggle-override" ' + (v.websitesUnabhaengig ? "checked" : "") + '> Websites unabhängig verwalten</label></div>' +
+            '<div class="website-list">' + websitesHtml + '</div>' +
+          '</div>' +
+
+          '<div class="section">' +
+            '<h3>Notizen</h3>' +
+            '<textarea data-field="notizen" rows="4" placeholder="Notizen zum Verlag...">' + esc(v.notizen || "") + '</textarea>' +
+          '</div>' +
+
+          '<div class="section">' +
+            '<h3>Todos</h3>' +
+            '<div class="todo-list">' + todosHtml + '</div>' +
+            '<div class="add-todo-row">' +
+              '<input type="text" id="newTodoText" placeholder="Neues Todo...">' +
+              '<input type="date" id="newTodoDate">' +
+              '<button data-action="add-todo" class="btn-small">+ Hinzufügen</button>' +
+            '</div>' +
+          '</div>' +
+
+          '<div class="modal-footer">' +
+            '<div class="modal-footer-actions">' +
+              '<button data-action="delete-verlag" class="btn-danger">Verlag löschen</button>' +
+              '<button data-action="save-verlag" class="btn-save" id="modalSaveBtn">💾 Speichern</button>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+  }
+
+  function isTypingField(overlay){
+    var el = document.activeElement;
+    if(!overlay.contains(el)) return false;
+    if(el.tagName === "TEXTAREA") return true;
+    if(el.tagName === "INPUT" && el.type === "text") return true;
+    return false;
   }
 
   function renderModal(force){
     var overlay = document.getElementById("modalOverlay");
-    if(!state.modal || !state.modal.open){
-      overlay.classList.remove("open");
+    if(!state.selectedId || !state.modalDraft){
+      overlay.classList.add("hidden");
       overlay.innerHTML = "";
-    } else if(force){
-      overlay.classList.add("open");
-      overlay.innerHTML = renderModalHtml();
+      overlay.dataset.openId = "";
+      return;
     }
-    renderDetailPanel();
+    if(!force && overlay.dataset.openId === state.selectedId && isTypingField(overlay)){
+      return;
+    }
+    overlay.dataset.openId = state.selectedId;
+    overlay.innerHTML = renderModalHtml(state.selectedId, state.modalDraft);
+    overlay.classList.remove("hidden");
   }
 
-  function openModal(type, vid, wid){
-    state.modal = { open: true, type: type, vid: vid, wid: wid || null };
+  function openModal(id){
+    if(!state.verlage[id]) return;
+    state.selectedId = id;
+    state.modalDraft = deepCopy(state.verlage[id]);
+    state.modalDirty = false;
+    document.getElementById("modalOverlay").dataset.openId = "";
     renderModal(true);
   }
   function closeModal(){
-    state.modal = { open: false };
-    renderModal(true);
+    state.selectedId = null;
+    state.modalDraft = null;
+    state.modalDirty = false;
+    var overlay = document.getElementById("modalOverlay");
+    overlay.classList.add("hidden");
+    overlay.innerHTML = "";
+    overlay.dataset.openId = "";
   }
 
-  // ---------- Render: Board ----------
-  function renderStats(){
-    var bar = document.getElementById("statsBar");
-    var counts = {};
-    KANBAN_SPALTEN.forEach(function(s){ counts[s] = 0; });
-    var total = 0;
+  function saveModalDraft(andClose){
+    var id = state.selectedId;
+    if(!id || !state.modalDraft) return;
+    state.verlage[id] = deepCopy(state.modalDraft);
+    persist(id);
+    state.modalDirty = false;
+    renderApp();
+    if(andClose){
+      closeModal();
+    } else {
+      var btn = document.getElementById("modalSaveBtn");
+      if(btn){
+        var original = btn.textContent;
+        btn.textContent = "✓ Gespeichert";
+        btn.classList.add("saved");
+        setTimeout(function(){
+          if(btn && btn.isConnected){
+            btn.textContent = original;
+            btn.classList.remove("saved");
+          }
+        }, 1200);
+      }
+    }
+  }
+
+  function showConfirmDialog(message, onYes, onNo, onCancel){
+    var overlay = document.getElementById("confirmOverlay");
+    overlay.innerHTML =
+      '<div class="confirm-panel">' +
+        '<p>' + esc(message) + '</p>' +
+        '<div class="confirm-actions">' +
+          '<button class="confirm-cancel" data-confirm="cancel">Abbrechen</button>' +
+          '<button class="confirm-no" data-confirm="no">Nein, verwerfen</button>' +
+          '<button class="confirm-yes" data-confirm="yes">Ja, speichern</button>' +
+        '</div>' +
+      '</div>';
+    overlay.classList.remove("hidden");
+
+    function handler(e){
+      var btn = e.target.closest("[data-confirm]");
+      if(!btn){
+        if(e.target.id === "confirmOverlay"){
+          overlay.classList.add("hidden");
+          overlay.innerHTML = "";
+          overlay.removeEventListener("click", handler);
+          if(onCancel) onCancel();
+        }
+        return;
+      }
+      var choice = btn.dataset.confirm;
+      overlay.classList.add("hidden");
+      overlay.innerHTML = "";
+      overlay.removeEventListener("click", handler);
+      if(choice === "yes" && onYes) onYes();
+      else if(choice === "no" && onNo) onNo();
+      else if(choice === "cancel" && onCancel) onCancel();
+    }
+    overlay.addEventListener("click", handler);
+  }
+
+  function attemptCloseModal(){
+    if(!state.selectedId) return;
+    if(!state.modalDirty){
+      closeModal();
+      return;
+    }
+    showConfirmDialog(
+      "Möchten Sie die Änderungen speichern?",
+      function(){ saveModalDraft(true); },
+      function(){ closeModal(); },
+      function(){ /* Abbrechen: Modal bleibt offen */ }
+    );
+  }
+
+  function computeReminders(){
+    var overdue = [];
+    var soon = [];
     Object.keys(state.verlage).forEach(function(id){
-      counts[state.verlage[id].status] = (counts[state.verlage[id].status] || 0) + 1;
-      total++;
-    });
-    var html = '<span class="stat-pill">Gesamt: <b>' + total + '</b></span>';
-    KANBAN_SPALTEN.forEach(function(s){
-      html += '<span class="stat-pill">' + esc(s) + ': <b>' + (counts[s] || 0) + '</b></span>';
-    });
-    bar.innerHTML = html;
-  }
-
-  function renderCard(v){
-    var card = document.createElement("div");
-    card.className = "card";
-    card.draggable = true;
-    card.dataset.id = v.id;
-
-    var wsCount = Object.keys(v.websites || {}).length;
-    var kanalCount = 0;
-    Object.keys(v.websites || {}).forEach(function(wid){
-      kanalCount += Object.keys(v.websites[wid].kanaele || {}).length;
-    });
-    kanalCount += Object.keys(v.gemeinsameKanaele || {}).length;
-
-    var reminderHtml = "";
-    if(v.reminder && v.reminder.date){
-      var today = new Date().toISOString().slice(0,10);
-      var overdue = v.reminder.date < today;
-      reminderHtml = '<div><span class="reminder-badge ' + (overdue ? "overdue" : "") + '">🔔 ' + esc(v.reminder.date) + '</span></div>';
-    }
-
-    card.innerHTML = '' +
-      '<div class="card-title">' + esc(v.name) + '</div>' +
-      '<div class="card-meta">🌐 ' + wsCount + ' Website(n) · 📡 ' + kanalCount + ' Kanäle</div>' +
-      reminderHtml;
-
-    card.addEventListener("click", function(){
-      state.detailId = v.id;
-      renderDetailPanel();
-    });
-    card.addEventListener("dragstart", function(e){
-      e.dataTransfer.setData("text/plain", v.id);
-    });
-    return card;
-  }
-
-  function renderBoard(){
-    renderStats();
-    var board = document.getElementById("board");
-    board.innerHTML = "";
-    var filter = state.filterText.trim().toLowerCase();
-    var verlageArr = Object.keys(state.verlage).map(function(id){ return state.verlage[id]; });
-
-    KANBAN_SPALTEN.forEach(function(status){
-      var col = document.createElement("div");
-      col.className = "column";
-      col.dataset.status = status;
-
-      var list = verlageArr.filter(function(v){
-        return v.status === status && (!filter || v.name.toLowerCase().indexOf(filter) !== -1);
+      var v = state.verlage[id];
+      var contacts = getEffectiveContacts(v);
+      contacts.forEach(function(c){
+        var wd = c.date ? workdaysSince(c.date) : null;
+        var item = {verlagId:id, verlagName:v.name, label:c.label, date:c.date, isWebsite:c.isWebsite, wid:c.wid, workdays: wd};
+        if(wd === null || wd >= 3){
+          item.sortWd = (wd === null) ? 999 : wd;
+          overdue.push(item);
+        } else if(wd === 2){
+          item.sortWd = wd;
+          soon.push(item);
+        }
       });
-
-      col.innerHTML = '<div class="column-head"><h3>' + esc(status) + '</h3><span class="count-badge">' + list.length + '</span></div>' +
-        '<div class="column-body" data-status="' + esc(status) + '"></div>';
-
-      var body = col.querySelector(".column-body");
-      list.forEach(function(v){ body.appendChild(renderCard(v)); });
-      board.appendChild(col);
     });
+    overdue.sort(function(a,b){ return b.sortWd - a.sortWd; });
+    soon.sort(function(a,b){ return b.sortWd - a.sortWd; });
+    return {overdue: overdue, soon: soon};
   }
 
-  // ---------- Event Listeners: Board / DnD ----------
-  document.getElementById("board").addEventListener("dragover", function(e){
-    var body = e.target.closest(".column-body");
-    if(body){ e.preventDefault(); body.classList.add("drag-over"); }
-  });
-  document.getElementById("board").addEventListener("dragleave", function(e){
-    var body = e.target.closest(".column-body");
-    if(body) body.classList.remove("drag-over");
-  });
-  document.getElementById("board").addEventListener("drop", function(e){
-    var body = e.target.closest(".column-body");
-    if(!body) return;
-    e.preventDefault();
-    body.classList.remove("drag-over");
-    var id = e.dataTransfer.getData("text/plain");
+  function computeOpenTodos(){
+    var list = [];
+    Object.keys(state.verlage).forEach(function(id){
+      var v = state.verlage[id];
+      (v.todos || []).forEach(function(t){
+        if(!t.erledigt){
+          list.push({id:t.id, text:t.text, faellig:t.faellig, verlagId:id, verlagName:v.name});
+        }
+      });
+    });
+    list.sort(function(a,b){ return (a.faellig || "9999").localeCompare(b.faellig || "9999"); });
+    return list;
+  }
+
+  function renderReminderItem(item){
+    var dateDisp = item.date ? formatDate(item.date) : "kein Datum erfasst";
+    var wdDisp = (item.workdays === null || item.workdays === undefined) ? "–" : item.workdays;
+    return '' +
+      '<div class="reminder-item">' +
+        '<div class="reminder-info">' +
+          '<strong>' + esc(item.verlagName) + '</strong>' + (item.isWebsite ? ' – ' + esc(item.label) : '') +
+          '<div class="reminder-sub">Letzter Kontakt: ' + dateDisp + ' · ' + wdDisp + ' Werktage</div>' +
+        '</div>' +
+        '<button class="btn-small" data-action="quick-contact" data-id="' + item.verlagId + '"' + (item.isWebsite ? ' data-wid="' + item.wid + '"' : '') + '>Heute kontaktiert</button>' +
+      '</div>';
+  }
+
+  function renderGlobalTodo(t){
+    var overdueTodo = t.faellig && t.faellig < todayISO();
+    return '' +
+      '<div class="todo-item ' + (overdueTodo ? "todo-overdue" : "") + '">' +
+        '<input type="checkbox" data-action="toggle-todo-global" data-id="' + t.verlagId + '" data-tid="' + t.id + '">' +
+        '<span class="todo-text">' + esc(t.text) + ' <em>(' + esc(t.verlagName) + ')</em></span>' +
+        '<span class="todo-date">' + (t.faellig ? formatDate(t.faellig) : "kein Datum") + '</span>' +
+      '</div>';
+  }
+
+  function renderReminder(){
+    var el = document.getElementById("reminderView");
+    var res = computeReminders();
+    var todos = computeOpenTodos();
+    var overdueHtml = res.overdue.length === 0
+      ? '<p class="empty-hint">Keine überfälligen Kontakte 🎉</p>'
+      : '<div class="reminder-list">' + res.overdue.map(renderReminderItem).join("") + '</div>';
+    var soonHtml = res.soon.length === 0
+      ? '<p class="empty-hint">Nichts aktuell bald fällig.</p>'
+      : '<div class="reminder-list">' + res.soon.map(renderReminderItem).join("") + '</div>';
+    var todosHtml = todos.length === 0
+      ? '<p class="empty-hint">Keine offenen Todos.</p>'
+      : '<div class="todo-list">' + todos.map(renderGlobalTodo).join("") + '</div>';
+
+    el.innerHTML =
+      '<div class="reminder-section"><h2>🔴 Überfällige Kontakte (≥ 3 Werktage ohne Kontakt)</h2>' + overdueHtml + '</div>' +
+      '<div class="reminder-section"><h2>🟡 Bald fällig (2 Werktage seit Kontakt)</h2>' + soonHtml + '</div>' +
+      '<div class="reminder-section"><h2>📝 Offene Todos</h2>' + todosHtml + '</div>';
+  }
+
+  var DETAIL_COLUMNS = [
+    {key:"name", label:"Verlag"},
+    {key:"prioritaet", label:"Priorität"},
+    {key:"wichtigkeitProzent", label:"Wichtigkeit %"},
+    {key:"status", label:"Status"},
+    {key:"kontaktVerlag", label:"Kontaktperson"},
+    {key:"websites", label:"Websites"},
+    {key:"letzterKontakt", label:"Letzter Kontakt"}
+  ];
+
+  function detailSortIds(ids){
+    var key = state.detailSort.key;
+    var dir = state.detailSort.dir === "asc" ? 1 : -1;
+    var arr = ids.slice();
+    function v(id){ return state.verlage[id]; }
+    arr.sort(function(a,b){
+      var A, B;
+      switch(key){
+        case "prioritaet": A = PRIO_RANK[v(a).prioritaet]||0; B = PRIO_RANK[v(b).prioritaet]||0; break;
+        case "wichtigkeitProzent": A = numOrNeg(v(a).wichtigkeitProzent); B = numOrNeg(v(b).wichtigkeitProzent); break;
+        case "status": A = v(a).status||""; B = v(b).status||""; break;
+        case "kontaktVerlag": A = personName(v(a).kontaktVerlag).toLowerCase(); B = personName(v(b).kontaktVerlag).toLowerCase(); break;
+        case "websites": A = websiteCount(v(a)); B = websiteCount(v(b)); break;
+        case "letzterKontakt": A = getOldestContactDate(v(a))||""; B = getOldestContactDate(v(b))||""; break;
+        default: A = (v(a).name||"").toLowerCase(); B = (v(b).name||"").toLowerCase();
+      }
+      if(A < B) return -1*dir;
+      if(A > B) return 1*dir;
+      return 0;
+    });
+    return arr;
+  }
+
+  function renderDetailWebsiteBlock(w){
+    var kanaeleHtml = Object.keys(w.kanaele || {}).map(function(kid){
+      var k = w.kanaele[kid];
+      var typen = k.typen || (k.typ ? [k.typ] : []);
+      var typLabel = typen.length ? typen.join(" + ") : "–";
+      return '<span class="kanal-badge"><b>' + esc(typLabel) + '</b> · ' + esc(k.format) + '</span>';
+    }).join("");
+    return '' +
+      '<div class="detail-website-block' + (kanaeleHtml ? ' has-kanaele' : '') + '">' +
+        '<div class="detail-website-title">🌐 ' + esc(w.name) + (w.letzterKontakt ? ' <span style="color:var(--muted);font-weight:400;font-size:0.78rem;">· letzter Kontakt: ' + formatDate(w.letzterKontakt) + '</span>' : '') + '</div>' +
+        (kanaeleHtml ? '<div class="detail-kanal-badges">' + kanaeleHtml + '</div>' : '') +
+      '</div>';
+  }
+
+  function prioColors(p){
+    if(p === "hoch") return {bg:"var(--red)", color:"#fff"};
+    if(p === "mittel") return {bg:"var(--yellow)", color:"#4a3200"};
+    if(p === "niedrig") return {bg:"var(--green)", color:"#fff"};
+    return {bg:"var(--grey)", color:"#fff"};
+  }
+  function statusColors(s){
+    if(s === "pipeline") return {bg:"var(--grey)", color:"#fff"};
+    if(s === "austausch") return {bg:"var(--accent)", color:"#fff"};
+    if(s === "test") return {bg:"var(--yellow)", color:"#4a3200"};
+    if(s === "automatisiert") return {bg:"var(--green)", color:"#fff"};
+    return {bg:"var(--grey)", color:"#fff"};
+  }
+  function renderDetailRow(id){
     var v = state.verlage[id];
-    if(v){
-      v.status = body.dataset.status;
-      saveState();
-      renderBoard();
-      if(state.detailId === id) renderDetailPanel();
-    }
+    var expanded = !!state.detailExpanded[id];
+    var websites = Object.keys(v.websites || {}).map(function(wid){ return v.websites[wid]; });
+    var pc = prioColors(v.prioritaet);
+    var prioSelect = '<select class="no-row-click inline-select-prio" data-field="prioritaet-inline" data-id="' + id + '" style="background:' + pc.bg + ';color:' + pc.color + ';">' +
+      '<option value="hoch" ' + (v.prioritaet === "hoch" ? "selected" : "") + '>Hoch</option>' +
+      '<option value="mittel" ' + (v.prioritaet === "mittel" ? "selected" : "") + '>Mittel</option>' +
+      '<option value="niedrig" ' + (v.prioritaet === "niedrig" ? "selected" : "") + '>Niedrig</option>' +
+    '</select>';
+    var sc = statusColors(v.status);
+    var statusSelect = '<select class="no-row-click inline-select-status" data-field="status-inline" data-id="' + id + '" style="background:' + sc.bg + ';color:' + sc.color + ';">' +
+      '<option value="pipeline" ' + (v.status === "pipeline" ? "selected" : "") + '>Pipeline</option>' +
+      '<option value="austausch" ' + (v.status === "austausch" ? "selected" : "") + '>Austausch</option>' +
+      '<option value="test" ' + (v.status === "test" ? "selected" : "") + '>Test</option>' +
+      '<option value="automatisiert" ' + (v.status === "automatisiert" ? "selected" : "") + '>Automatisiert</option>' +
+    '</select>';
+    var expandRow = expanded ? (
+      '<tr class="detail-expand-row" data-id="' + id + '">' +
+        '<td colspan="' + DETAIL_COLUMNS.length + '">' +
+          (websites.length === 0 ? '<p class="empty-hint">Keine Websites erfasst.</p>' : websites.map(renderDetailWebsiteBlock).join("")) +
+        '</td>' +
+      '</tr>'
+    ) : "";
+    return '' +
+      '<tr class="verlag-row" data-id="' + id + '">' +
+        '<td><span class="expand-arrow ' + (expanded ? "open" : "") + '">▶</span>' + esc(v.name) + '</td>' +
+        '<td>' + prioSelect + '</td>' +
+        '<td>' + (v.wichtigkeitProzent !== undefined && v.wichtigkeitProzent !== null && v.wichtigkeitProzent !== "" ? Number(v.wichtigkeitProzent).toFixed(2) + " %" : "–") + '</td>' +
+        '<td>' + statusSelect + '</td>' +
+        '<td>' + esc(personName(v.kontaktVerlag)) + '</td>' +
+        '<td>' + websiteCount(v) + '</td>' +
+        '<td>' + formatDate(getOldestContactDate(v)) + '</td>' +
+      '</tr>' + expandRow;
+  }
+
+  function renderDetail(){
+    var el = document.getElementById("detailView");
+    var ids = Object.keys(state.verlage).filter(function(id){
+      return passesFilter(state.verlage[id]);
+    });
+    ids = detailSortIds(ids);
+    var headHtml = DETAIL_COLUMNS.map(function(col){
+      var sorted = state.detailSort.key === col.key;
+      var arrow = sorted ? (state.detailSort.dir === "asc" ? " ▲" : " ▼") : "";
+      return '<th class="' + (sorted ? "sorted" : "") + '" data-key="' + col.key + '">' + col.label + arrow + '</th>';
+    }).join("");
+    var bodyHtml = ids.length === 0
+      ? '<tr><td colspan="' + DETAIL_COLUMNS.length + '" class="empty-hint">Keine Verlage erfasst.</td></tr>'
+      : ids.map(renderDetailRow).join("");
+    el.innerHTML =
+      '<div class="detail-wrap">' +
+        '<table class="detail-table">' +
+          '<thead><tr>' + headHtml + '</tr></thead>' +
+          '<tbody>' + bodyHtml + '</tbody>' +
+        '</table>' +
+      '</div>';
+  }
+
+  function renderApp(){
+    renderKPIs();
+    renderBoard();
+    if(state.currentTab === "reminder") renderReminder();
+    if(state.currentTab === "detail") renderDetail();
+    renderModal();
+  }
+
+  document.querySelectorAll(".tab-btn").forEach(function(btn){
+    btn.addEventListener("click", function(){
+      document.querySelectorAll(".tab-btn").forEach(function(b){ b.classList.remove("active"); });
+      btn.classList.add("active");
+      state.currentTab = btn.dataset.tab;
+      document.getElementById("kanbanView").classList.toggle("hidden", state.currentTab !== "kanban");
+      document.getElementById("reminderView").classList.toggle("hidden", state.currentTab !== "reminder");
+      document.getElementById("detailView").classList.toggle("hidden", state.currentTab !== "detail");
+      document.getElementById("kanbanToolbar").classList.toggle("hidden", state.currentTab === "reminder");
+      renderApp();
+    });
   });
 
   document.getElementById("searchInput").addEventListener("input", function(e){
-    state.filterText = e.target.value;
+    state.filter.search = e.target.value;
     renderBoard();
+    if(state.currentTab === "detail") renderDetail();
+  });
+  document.getElementById("filterStatus").addEventListener("change", function(e){
+    state.filter.status = e.target.value;
+    renderBoard();
+    if(state.currentTab === "detail") renderDetail();
+  });
+  document.getElementById("filterPrio").addEventListener("change", function(e){
+    state.filter.prioritaet = e.target.value;
+    renderBoard();
+    if(state.currentTab === "detail") renderDetail();
   });
 
   document.getElementById("addVerlagBtn").addEventListener("click", function(){
-    var id = "v" + Date.now();
-    state.verlage[id] = { id: id, name: "Neuer Verlag", status: KANBAN_SPALTEN[0], websites: {}, gemeinsameKanaele: {}, reminder: null };
-    saveState();
-    renderBoard();
-    state.detailId = id;
-    renderDetailPanel();
+    document.getElementById("addVerlagForm").classList.remove("hidden");
+    document.getElementById("newVerlagName").focus();
+  });
+  document.getElementById("cancelAddVerlag").addEventListener("click", function(){
+    document.getElementById("addVerlagForm").classList.add("hidden");
+    document.getElementById("newVerlagName").value = "";
+  });
+  function submitNewVerlag(){
+    var nameInput = document.getElementById("newVerlagName");
+    var name = nameInput.value.trim();
+    if(!name) return;
+    var id = uid("v");
+    state.verlage[id] = {
+      name: name,
+      kontaktVerlag: "",
+      zustaendigIntern: "",
+      prioritaet: "mittel",
+      status: "pipeline",
+      letzterKontakt: todayISO(),
+      websitesUnabhaengig: false,
+      notizen: "",
+      todos: [],
+      websites: {}
+    };
+    nameInput.value = "";
+    document.getElementById("addVerlagForm").classList.add("hidden");
+    renderApp();
+    persist(id);
+    openModal(id);
+  }
+  document.getElementById("confirmAddVerlag").addEventListener("click", submitNewVerlag);
+  document.getElementById("newVerlagName").addEventListener("keydown", function(e){
+    if(e.key === "Enter") submitNewVerlag();
   });
 
-  // ---------- Event Listeners: Detail Overlay ----------
-  var detailOverlay = document.getElementById("detailOverlay");
-
-  detailOverlay.addEventListener("click", function(e){
-    if(e.target.id === "detailOverlay"){
-      state.detailId = null;
-      renderDetailPanel();
-      return;
-    }
-    var btn = e.target.closest("[data-action]");
-    if(!btn) return;
-    var action = btn.dataset.action;
-    var vid = state.detailId;
-    var v = state.verlage[vid];
-    var wid = btn.dataset.wid;
-
-    if(action === "close-detail"){
-      state.detailId = null;
-      renderDetailPanel();
-      return;
-    }
-    if(!v) return;
-
-    if(action === "edit-kanaele"){
-      openModal("website", vid, wid);
-    } else if(action === "edit-gemeinsam"){
-      openModal("gemeinsam", vid, null);
-    } else if(action === "remove-website"){
-      delete v.websites[wid];
-      saveState();
-      renderDetailPanel();
-      renderBoard();
-    } else if(action === "add-website"){
-      var newWid = "w" + Date.now() + Math.floor(Math.random() * 1000);
-      v.websites[newWid] = { name: "Neue Website", kanaele: {} };
-      saveState();
-      renderDetailPanel();
-      renderBoard();
-    }
+  document.getElementById("resetWebsitesBtn").addEventListener("click", function(){
+    showConfirmDialogSimple("Fehlende Website-Namen aus den Stammdaten ergänzen? Bereits vorhandene Websites und Kanäle bleiben unverändert.", function(){
+      restoreWebsitesFromSeed();
+    });
   });
 
-  detailOverlay.addEventListener("change", function(e){
-    var field = e.target.dataset.field;
-    if(!field) return;
-    var v = state.verlage[state.detailId];
-    if(!v) return;
+  function showConfirmDialogSimple(message, onOk){
+    var overlay = document.getElementById("confirmOverlay");
+    overlay.innerHTML =
+      '<div class="confirm-panel">' +
+        '<p>' + esc(message) + '</p>' +
+        '<div class="confirm-actions">' +
+          '<button class="confirm-cancel" data-confirm="cancel">Abbrechen</button>' +
+          '<button class="confirm-yes" data-confirm="ok">OK</button>' +
+        '</div>' +
+      '</div>';
+    overlay.classList.remove("hidden");
+    function handler(e){
+      var btn = e.target.closest("[data-confirm]");
+      if(!btn){
+        if(e.target.id === "confirmOverlay"){
+          overlay.classList.add("hidden");
+          overlay.innerHTML = "";
+          overlay.removeEventListener("click", handler);
+        }
+        return;
+      }
+      overlay.classList.add("hidden");
+      overlay.innerHTML = "";
+      overlay.removeEventListener("click", handler);
+      if(btn.dataset.confirm === "ok" && onOk) onOk();
+    }
+    overlay.addEventListener("click", handler);
+  }
 
-    if(field === "verlag-status"){
-      v.status = e.target.value;
-      saveState();
-      renderBoard();
-    } else if(field === "reminder-date"){
-      v.reminder = v.reminder || {};
-      v.reminder.date = e.target.value;
-      saveState();
-      renderBoard();
+  var kanbanView = document.getElementById("kanbanView");
+
+  kanbanView.addEventListener("dragstart", function(e){
+    var card = e.target.closest(".kanban-card");
+    if(card){
+      state.draggingId = card.dataset.id;
+      e.dataTransfer.effectAllowed = "move";
+      card.classList.add("dragging");
     }
   });
-
-  detailOverlay.addEventListener("input", function(e){
-    var field = e.target.dataset.field;
-    if(!field) return;
-    var v = state.verlage[state.detailId];
-    if(!v) return;
-
-    if(field === "verlag-name"){
-      v.name = e.target.value;
-      saveState();
-      renderBoard();
-    } else if(field === "reminder-text"){
-      v.reminder = v.reminder || {};
-      v.reminder.text = e.target.value;
-      saveState();
-    } else if(field === "website-name"){
-      var wid = e.target.dataset.wid;
-      if(v.websites[wid]){
-        v.websites[wid].name = e.target.value;
-        saveState();
+  kanbanView.addEventListener("dragend", function(e){
+    var card = e.target.closest(".kanban-card");
+    if(card) card.classList.remove("dragging");
+    state.draggingId = null;
+  });
+  kanbanView.addEventListener("dragover", function(e){
+    var list = e.target.closest(".card-list");
+    if(list){
+      e.preventDefault();
+      list.classList.add("drag-over");
+    }
+  });
+  kanbanView.addEventListener("dragleave", function(e){
+    var list = e.target.closest(".card-list");
+    if(list) list.classList.remove("drag-over");
+  });
+  kanbanView.addEventListener("drop", function(e){
+    var list = e.target.closest(".card-list");
+    if(list){
+      e.preventDefault();
+      list.classList.remove("drag-over");
+      if(state.draggingId){
+        changeStatus(state.draggingId, list.dataset.status);
+        state.draggingId = null;
       }
     }
   });
+  kanbanView.addEventListener("change", function(e){
+    var select = e.target.closest(".status-select");
+    if(select){
+      var card = select.closest(".kanban-card");
+      changeStatus(card.dataset.id, select.value);
+      return;
+    }
+    var sortSelect = e.target.closest(".col-sort-select");
+    if(sortSelect){
+      var st = sortSelect.dataset.status;
+      state.columnSort[st] = sortSelect.value;
+      renderBoard();
+    }
+  });
+  kanbanView.addEventListener("click", function(e){
+    if(e.target.closest(".no-card-click")) return;
+    var card = e.target.closest(".kanban-card");
+    if(card) openModal(card.dataset.id);
+  });
 
-  // ---------- Event Listeners: Modal Overlay ----------
+  var detailView = document.getElementById("detailView");
+  detailView.addEventListener("click", function(e){
+    if(e.target.closest(".no-row-click")) return;
+    var th = e.target.closest("th[data-key]");
+    if(th){
+      var key = th.dataset.key;
+      if(state.detailSort.key === key){
+        state.detailSort.dir = state.detailSort.dir === "asc" ? "desc" : "asc";
+      } else {
+        state.detailSort.key = key;
+        state.detailSort.dir = "asc";
+      }
+      renderDetail();
+      return;
+    }
+    var row = e.target.closest("tr.verlag-row");
+    if(row){
+      var id = row.dataset.id;
+      state.detailExpanded[id] = !state.detailExpanded[id];
+      renderDetail();
+    }
+  });
+
+  detailView.addEventListener("change", function(e){
+    var field = e.target.dataset.field;
+    if(field !== "prioritaet-inline" && field !== "status-inline") return;
+    var id = e.target.dataset.id;
+    var v = state.verlage[id];
+    if(!v) return;
+    if(field === "prioritaet-inline") v.prioritaet = e.target.value;
+    else if(field === "status-inline") v.status = e.target.value;
+    persist(id);
+    renderApp();
+  });
+
   var modalOverlay = document.getElementById("modalOverlay");
+
+  function createPerson(vorname, nachname, email){
+    var pid;
+    if(usingFirebase && dbRef2){
+      var newRef = dbRef2.push();
+      pid = newRef.key;
+      newRef.set({vorname: vorname, nachname: nachname, email: email || ""}).catch(function(err){ console.error("Person anlegen fehlgeschlagen:", err); });
+      state.personen[pid] = {vorname: vorname, nachname: nachname, email: email || ""};
+    } else {
+      pid = uid("p");
+      state.personen[pid] = {vorname: vorname, nachname: nachname, email: email || ""};
+    }
+    return pid;
+  }
 
   modalOverlay.addEventListener("click", function(e){
     if(e.target.id === "modalOverlay"){
-      closeModal();
+      attemptCloseModal();
       return;
     }
     var btn = e.target.closest("[data-action]");
     if(!btn) return;
     var action = btn.dataset.action;
-    var m = state.modal;
-    if(!m || !m.open) return;
-    var v = state.verlage[m.vid];
-    if(!v) return;
+
+    if(action === "close-modal"){ attemptCloseModal(); return; }
+
+    if(action === "save-verlag"){
+      saveModalDraft(true);
+      return;
+    }
+
+    var id = state.selectedId;
+    if(!id || !state.modalDraft) return;
+    var v = state.modalDraft;
     var wid = btn.dataset.wid;
     var kid = btn.dataset.kid;
+    var tid = btn.dataset.tid;
 
-    if(action === "close-modal"){
-      closeModal();
+    if(action === "delete-verlag"){
+      showConfirmDialogSimple("Verlag wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.", function(){
+        delete state.verlage[id];
+        removeVerlagRemote(id);
+        state.selectedId = null;
+        state.modalDraft = null;
+        state.modalDirty = false;
+        renderApp();
+      });
       return;
-    }
-    if(action === "add-kanal"){
-      var w = v.websites[wid];
-      var newId = "k" + Date.now() + Math.floor(Math.random() * 1000);
-      w.kanaele[newId] = { typen: ["Mailing"], format: "XLS", beispielLink: "", systemtyp: "", systemtypSonstiges: "" };
+    } else if(action === "toggle-override"){
+      v.websitesUnabhaengig = !v.websitesUnabhaengig;
+    } else if(action === "add-website"){
+      var newWid = uid("w");
+      if(!v.websites) v.websites = {};
+      v.websites[newWid] = {name: "Neue Website", letzterKontakt: todayISO(), kanaele: {}};
+    } else if(action === "remove-website"){
+      if(v.websites) delete v.websites[wid];
+    } else if(action === "add-kanal"){
+      if(!v.websites || !v.websites[wid]) return;
+      if(!v.websites[wid].kanaele) v.websites[wid].kanaele = {};
+      var newKid = uid("k");
+      v.websites[wid].kanaele[newKid] = {typen: ["Mailing"], format: "XLS", beispielLink: ""};
+    } else if(action === "remove-kanal"){
+      if(v.websites && v.websites[wid] && v.websites[wid].kanaele) delete v.websites[wid].kanaele[kid];
+    } else if(action === "add-gemeinsam-kanal"){
+      if(!v.gemeinsameKanaele) v.gemeinsameKanaele = {};
+      var newGkid = uid("k");
+      v.gemeinsameKanaele[newGkid] = {typen: ["Mailing"], format: "XLS", beispielLink: ""};
+    } else if(action === "remove-gemeinsam-kanal"){
+      if(v.gemeinsameKanaele) delete v.gemeinsameKanaele[kid];
+    } else if(action === "toggle-todo"){
+      var t1 = (v.todos || []).find(function(t){ return t.id === tid; });
+      if(t1) t1.erledigt = !t1.erledigt;
+    } else if(action === "delete-todo"){
+      v.todos = (v.todos || []).filter(function(t){ return t.id !== tid; });
+    } else if(action === "add-todo"){
+      var textInput = document.getElementById("newTodoText");
+      var dateInput = document.getElementById("newTodoDate");
+      var text = textInput.value.trim();
+      if(!text) return;
+      if(!v.todos) v.todos = [];
+      v.todos.push({id: uid("t"), text: text, faellig: dateInput.value || "", erledigt:false});
+    } else if(action === "create-person"){
+      var forField = btn.dataset.for;
+      var wrap = btn.closest(".new-person-form");
+      if(!wrap) return;
+      var vornameEl = wrap.querySelector('[data-newperson="vorname"]');
+      var nachnameEl = wrap.querySelector('[data-newperson="nachname"]');
+      var emailEl = wrap.querySelector('[data-newperson="email"]');
+      var vorname = vornameEl.value.trim();
+      var nachname = nachnameEl.value.trim();
+      var email = emailEl.value.trim();
+      if(!vorname || !nachname) return;
+      var pid = createPerson(vorname, nachname, email);
+      if(forField === "kontaktVerlag") v.kontaktVerlag = pid;
+      else if(forField === "zustaendigIntern") v.zustaendigIntern = pid;
       state.modalDirty = true;
-      saveState();
       renderModal(true);
       return;
-    }
-    if(action === "remove-kanal"){
-      var w2 = v.websites[wid];
-      delete w2.kanaele[kid];
-      state.modalDirty = true;
-      saveState();
-      renderModal(true);
-      return;
-    }
-    if(action === "add-gemeinsam-kanal"){
-      var newGid = "g" + Date.now() + Math.floor(Math.random() * 1000);
-      v.gemeinsameKanaele[newGid] = { typen: ["Mailing"], format: "XLS", beispielLink: "", systemtyp: "", systemtypSonstiges: "" };
-      state.modalDirty = true;
-      saveState();
-      renderModal(true);
-      return;
-    }
-    if(action === "remove-gemeinsam-kanal"){
-      delete v.gemeinsameKanaele[kid];
-      state.modalDirty = true;
-      saveState();
-      renderModal(true);
-      return;
-    }
-  });
-
-  modalOverlay.addEventListener("change", function(e){
-    var field = e.target.dataset.field;
-    if(!field) return;
-    var m = state.modal;
-    if(!m || !m.open) return;
-    var v = state.verlage[m.vid];
-    if(!v) return;
-    var wid = e.target.dataset.wid;
-    var kid = e.target.dataset.kid;
-
-    if(field === "kanal-typ"){
-      var k = v.websites[wid].kanaele[kid];
-      var typ = e.target.dataset.typ;
-      k.typen = k.typen || [];
-      if(e.target.checked){
-        if(k.typen.indexOf(typ) === -1) k.typen.push(typ);
-      } else {
-        k.typen = k.typen.filter(function(t){ return t !== typ; });
-      }
-    } else if(field === "kanal-format"){
-      v.websites[wid].kanaele[kid].format = e.target.value;
-    } else if(field === "kanal-systemtyp"){
-      var kSys = v.websites[wid].kanaele[kid];
-      kSys.systemtyp = e.target.value;
-      if(e.target.value !== "Sonstiges"){
-        kSys.systemtypSonstiges = "";
-      }
-    } else if(false){
-    } else if(field === "gemeinsam-kanal-typ"){
-      var gk = v.gemeinsameKanaele[kid];
-      var typ2 = e.target.dataset.typ;
-      gk.typen = gk.typen || [];
-      if(e.target.checked){
-        if(gk.typen.indexOf(typ2) === -1) gk.typen.push(typ2);
-      } else {
-        gk.typen = gk.typen.filter(function(t){ return t !== typ2; });
-      }
-    } else if(field === "gemeinsam-kanal-format"){
-      v.gemeinsameKanaele[kid].format = e.target.value;
-    } else if(field === "gemeinsam-kanal-systemtyp"){
-      var gkSys = v.gemeinsameKanaele[kid];
-      gkSys.systemtyp = e.target.value;
-      if(e.target.value !== "Sonstiges"){
-        gkSys.systemtypSonstiges = "";
-      }
     } else {
       return;
     }
 
     state.modalDirty = true;
-    saveState();
     renderModal(true);
   });
 
   modalOverlay.addEventListener("input", function(e){
     var field = e.target.dataset.field;
     if(!field) return;
-    var m = state.modal;
-    if(!m || !m.open) return;
-    var v = state.verlage[m.vid];
-    if(!v) return;
+    var id = state.selectedId;
+    if(!id || !state.modalDraft) return;
+    var v = state.modalDraft;
     var wid = e.target.dataset.wid;
     var kid = e.target.dataset.kid;
 
-    if(field === "kanal-link"){
-      v.websites[wid].kanaele[kid].beispielLink = e.target.value;
-    } else if(field === "kanal-systemtyp-sonstiges"){
-      v.websites[wid].kanaele[kid].systemtypSonstiges = e.target.value;
-    } else if(field === "gemeinsam-kanal-link"){
-      v.gemeinsameKanaele[kid].beispielLink = e.target.value;
-    } else if(field === "gemeinsam-kanal-systemtyp-sonstiges"){
-      v.gemeinsameKanaele[kid].systemtypSonstiges = e.target.value;
-    } else {
-      return;
-    }
+    if(field === "name") v.name = e.target.value;
+    else if(field === "notizen") v.notizen = e.target.value;
+    else if(field === "website-name"){ if(v.websites && v.websites[wid]) v.websites[wid].name = e.target.value; }
+    else if(field === "kanal-link"){ if(v.websites && v.websites[wid] && v.websites[wid].kanaele[kid]) v.websites[wid].kanaele[kid].beispielLink = e.target.value; }
+    else if(field === "gemeinsam-kanal-link"){ if(v.gemeinsameKanaele && v.gemeinsameKanaele[kid]) v.gemeinsameKanaele[kid].beispielLink = e.target.value; }
+    else return;
 
     state.modalDirty = true;
-    saveState();
     renderModal(false);
   });
 
-  // ---------- Init ----------
-  function init(){
-    renderBoard();
-    renderDetailPanel();
+  modalOverlay.addEventListener("change", function(e){
+    var field = e.target.dataset.field;
+    if(!field) return;
+    var id = state.selectedId;
+    if(!id || !state.modalDraft) return;
+    var v = state.modalDraft;
+    var wid = e.target.dataset.wid;
+    var kid = e.target.dataset.kid;
 
-    if(fbRef){
-      fbRef.once("value").then(function(snap){
-        var data = snap.val();
-        if(data && Object.keys(data).length > 0){
-          state.verlage = data;
-        } else {
-          fbRef.set(state.verlage).catch(function(err){ console.warn("Initiales Speichern fehlgeschlagen", err); });
+    if(field === "kontaktVerlag" || field === "zustaendigIntern"){
+      if(e.target.value === "__new__"){
+        var formWrap = e.target.closest(".field-row").querySelector('.new-person-form[data-for="' + field + '"]');
+        if(formWrap){
+          formWrap.classList.remove("hidden");
+          var vornameInput = formWrap.querySelector('[data-newperson="vorname"]');
+          if(vornameInput) vornameInput.focus();
         }
-        renderBoard();
-      }).catch(function(err){
-        console.warn("Firebase Laden fehlgeschlagen, nutze Seed-Daten.", err);
-      });
+        return;
+      }
+      v[field] = e.target.value;
     }
-  }
+    else if(field === "prioritaet") v.prioritaet = e.target.value;
+    else if(field === "status") v.status = e.target.value;
+    else if(field === "letzterKontakt") v.letzterKontakt = e.target.value;
+    else if(field === "website-date"){ if(v.websites && v.websites[wid]) v.websites[wid].letzterKontakt = e.target.value; }
+    else if(field === "kanal-format"){ if(v.websites && v.websites[wid] && v.websites[wid].kanaele[kid]) v.websites[wid].kanaele[kid].format = e.target.value; }
+    else if(field === "gemeinsam-kanal-format"){ if(v.gemeinsameKanaele && v.gemeinsameKanaele[kid]) v.gemeinsameKanaele[kid].format = e.target.value; }
+    else if(field === "kanal-typ-check"){
+      if(v.websites && v.websites[wid] && v.websites[wid].kanaele[kid]){
+        var kObj = v.websites[wid].kanaele[kid];
+        if(!kObj.typen) kObj.typen = kObj.typ ? [kObj.typ] : [];
+        var typVal = e.target.dataset.typ;
+        var idx = kObj.typen.indexOf(typVal);
+        if(e.target.checked){
+          if(idx === -1) kObj.typen.push(typVal);
+        } else {
+          if(idx !== -1) kObj.typen.splice(idx, 1);
+        }
+      }
+    }
+    else if(field === "gemeinsam-kanal-typ-check"){
+      if(v.gemeinsameKanaele && v.gemeinsameKanaele[kid]){
+        var gkObj = v.gemeinsameKanaele[kid];
+        if(!gkObj.typen) gkObj.typen = gkObj.typ ? [gkObj.typ] : [];
+        var typVal2 = e.target.dataset.typ;
+        var idx2 = gkObj.typen.indexOf(typVal2);
+        if(e.target.checked){
+          if(idx2 === -1) gkObj.typen.push(typVal2);
+        } else {
+          if(idx2 !== -1) gkObj.typen.splice(idx2, 1);
+        }
+      }
+    }
+    else return;
 
-  init();
+    state.modalDirty = true;
+    renderModal(true);
+  });
+
+  document.addEventListener("keydown", function(e){
+    if(e.key === "Escape" && state.selectedId){
+      var confirmOverlay = document.getElementById("confirmOverlay");
+      if(!confirmOverlay.classList.contains("hidden")) return;
+      attemptCloseModal();
+    }
+  });
+
+  document.getElementById("reminderView").addEventListener("click", function(e){
+    var btn = e.target.closest("[data-action]");
+    if(!btn) return;
+    var action = btn.dataset.action;
+    var id = btn.dataset.id;
+    var v = state.verlage[id];
+    if(!v) return;
+
+    if(action === "quick-contact"){
+      var wid = btn.dataset.wid;
+      if(wid && v.websites && v.websites[wid]){
+        v.websites[wid].letzterKontakt = todayISO();
+      } else {
+        v.letzterKontakt = todayISO();
+      }
+      renderApp();
+      persist(id);
+    } else if(action === "toggle-todo-global"){
+      var tid = btn.dataset.tid;
+      var t = (v.todos || []).find(function(tt){ return tt.id === tid; });
+      if(t) t.erledigt = true;
+      renderApp();
+      persist(id);
+    }
+  });
+
+  setSyncStatus("connecting");
+  renderApp();
+  initFirebase();
+
 })();
 </script>
 </body>
