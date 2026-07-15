@@ -869,9 +869,16 @@ main#mainContent{padding:0 20px 30px 20px;}
   function buildSystemOptions(selectedId){
     var list = Object.keys(state.systeme).map(function(sid){
       var s = state.systeme[sid];
-      return {id: sid, name: s.name || ""};
+      return {id: sid, name: (s && s.name) ? s.name : ""};
+    }).filter(function(s){ return s.name && s.name.trim() !== ""; });
+    var seen = {};
+    list = list.filter(function(s){
+      var key = s.name.trim().toLowerCase();
+      if(seen[key]) return false;
+      seen[key] = true;
+      return true;
     });
-    list.sort(function(a,b){ return (a.name || "").localeCompare(b.name || ""); });
+    list.sort(function(a,b){ return a.name.trim().toLowerCase().localeCompare(b.name.trim().toLowerCase()); });
     var html = '<option value="">–</option>';
     html += list.map(function(s){
       return '<option value="' + s.id + '" ' + (selectedId === s.id ? "selected" : "") + '>' + esc(s.name) + '</option>';
@@ -999,6 +1006,14 @@ main#mainContent{padding:0 20px 30px 20px;}
       '</div>';
   }
 
+  function personEmailLine(personId){
+    if(!personId) return "";
+    var p = state.personen[personId];
+    if(!p || !p.email || !p.email.trim()) return "";
+    var email = p.email.trim();
+    return '✉️ <a href="mailto:' + esc(email) + '" style="color:var(--muted);">' + esc(email) + '</a>';
+  }
+
   function renderModalHtml(id, v){
     var websitesHtml = Object.keys(v.websites || {}).map(function(wid){
       return renderWebsite(wid, v.websites[wid], v);
@@ -1060,10 +1075,12 @@ main#mainContent{padding:0 20px 30px 20px;}
           '<div class="field-grid">' +
             '<div class="field-row person-select-wrap"><label>Verlag Kontakt</label>' +
               '<select data-field="kontaktVerlag">' + kontaktVerlagOptions + '</select>' +
+              '<div class="person-email-display" data-email-for="kontaktVerlag" style="font-size:0.78rem;color:var(--muted);">' + personEmailLine(v.kontaktVerlag) + '</div>' +
               renderNewPersonForm("kontaktVerlag") +
             '</div>' +
             '<div class="field-row person-select-wrap"><label>Zuständig</label>' +
               '<select data-field="zustaendigIntern">' + zustaendigInternOptions + '</select>' +
+              '<div class="person-email-display" data-email-for="zustaendigIntern" style="font-size:0.78rem;color:var(--muted);">' + personEmailLine(v.zustaendigIntern) + '</div>' +
               renderNewPersonForm("zustaendigIntern") +
             '</div>' +
             '<div class="field-row"><label>Priorität</label>' +
@@ -1798,6 +1815,8 @@ main#mainContent{padding:0 20px 30px 20px;}
         return;
       }
       v[field] = e.target.value;
+      var emailDisplay = e.target.closest(".field-row").querySelector('.person-email-display[data-email-for="' + field + '"]');
+      if(emailDisplay) emailDisplay.innerHTML = personEmailLine(v[field]);
     }
     else if(field === "prioritaet") v.prioritaet = e.target.value;
     else if(field === "status") v.status = e.target.value;
