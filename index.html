@@ -534,6 +534,12 @@ main#mainContent{padding:0 20px 30px 20px;}
     }
   }
   function ampelInfo(dateStr){
+    if(!dateStr) return {level:"grey", workdays:null, text:"Kein Kontaktdatum erfasst"};
+    var wd = workdaysSince(dateStr);
+    if(wd >= 3) return {level:"red", workdays:wd, text: wd + " Werktage seit letztem Kontakt – überfällig"};
+    if(wd === 2) return {level:"yellow", workdays:wd, text: wd + " Werktage seit letztem Kontakt – bald fällig"};
+    return {level:"green", workdays:wd, text: wd + " Werktag(e) seit letztem Kontakt"};
+  }
   function getEffectiveContacts(v){
     if(v.websitesUnabhaengig && v.websites && Object.keys(v.websites).length > 0){
       return Object.keys(v.websites).map(function(wid){
@@ -791,6 +797,10 @@ main#mainContent{padding:0 20px 30px 20px;}
       state.verlage = buildSeedVerlage();
     }
     renderApp();
+    if(!state.popupShown){
+      state.popupShown = true;
+      setTimeout(function(){ showFaelligeTodosPopup(); }, 1000);
+    }
   }
 
   function initFirebase(){
@@ -816,6 +826,10 @@ main#mainContent{padding:0 20px 30px 20px;}
         var data = snap.val();
         if(!data || Object.keys(data).length === 0){
           seedIfEmpty();
+        }
+        if(!state.popupShown){
+          state.popupShown = true;
+          setTimeout(function(){ showFaelligeTodosPopup(); }, 1000);
         }
       }).catch(function(err){
         console.error("Firebase Lesefehler:", err);
@@ -862,16 +876,9 @@ main#mainContent{padding:0 20px 30px 20px;}
       dbRefTodoOrder.on("value", function(snap){
         var val = snap.val();
         state.todoOrder = Array.isArray(val) ? val : [];
-        renderApp();
+        renderTodoPanel();
       }, function(err){
         console.error("Firebase TodoOrder-Listener-Fehler:", err);
-      });
-
-      dbRef.once("value").then(function(){
-        if(!state.popupShown){
-          state.popupShown = true;
-          setTimeout(function(){ showFaelligeTodosPopup(); }, 1000);
-        }
       });
     } catch(err){
       console.error("Firebase Initialisierung fehlgeschlagen:", err);
@@ -883,6 +890,18 @@ main#mainContent{padding:0 20px 30px 20px;}
     if(usingFirebase && dbRef){
       dbRef.child(id).remove().catch(function(err){ console.error(err); });
     }
+  }
+
+  function persist(id){
+    clearTimeout(saveTimers[id]);
+    saveTimers[id] = setTimeout(function(){
+      if(usingFirebase && dbRef && state.verlage[id]){
+        dbRef.child(id).set(state.verlage[id]).catch(function(err){
+          console.error("Speicherfehler:", err);
+          setSyncStatus("offline");
+        });
+      }
+    }, 400);
   }
 
   function renderKPIs(){
@@ -1385,84 +1404,136 @@ main#mainContent{padding:0 20px 30px 20px;}
     );
   }
 
-  function computeReminders(){
-    var overdue = [];
-    var soon = [];
-    Object.keys(state.verlage).forEach(function(id){
-      var v = state.verlage[id];
-      var contacts = getEffectiveContacts(v);
-      contacts.forEach(function(c){
-        var wd = c.date ? workdaysSince(c.date) : null;
-        var item = {verlagId:id, verlagName:v.name, label:c.label, date:c.date, isWebsite:c.isWebsite, wid:c.wid, workdays: wd};
-        if(wd === null || wd >= 3){
-          item.sortWd = (wd === null) ? 999 : wd;
-          overdue.push(item);
-        } else if(wd === 2){
-          item.sortWd = wd;
-          soon.push(item);
-        }
-      });
-    });
-    overdue.sort(function(a,b){ return b.sortWd - a.sortWd; });
-    soon.sort(function(a,b){ return b.sortWd - a.sortWd; });
-    return {overdue: overdue, soon: soon};
-  }
-
-  function computeOpenTodos(){
+  function computeAllTodos(){
     var list = [];
-    Object.keys(state.verlage).forEach(function(id){
-      var v = state.verlage[id];
+    Object.keys(state.verlage).forEach(function(vid){
+      var v = state.verlage[vid];
       (v.todos || []).forEach(function(t){
-        if(!t.erledigt){
-          list.push({id:t.id, text:t.text, faellig:t.faellig, verlagId:id, verlagName:v.name});
-        }
+        list.push({
+          id: t.id,
+          text: t.text,
+          faellig: t.faellig || "",
+          erledigt: !!t.erledigt,
+          verlagId: vid,
+          verlagName: v.name
+        });
       });
     });
-    list.sort(function(a,b){ return (a.faellig || "9999").localeCompare(b.faellig || "9999"); });
     return list;
   }
 
-  function renderReminderItem(item){
-    var dateDisp = item.date ? formatDate(item.date) : "kein Datum erfasst";
-    var wdDisp = (item.workdays === null || item.workdays === undefined) ? "–" : item.workdays;
+  function filterTodos(list){
+    if(state.todoFilter === "offen") return list.filter(function(t){ return !t.erledigt; });
+    if(state.todoFilter === "ueberfaellig") return list.filter(function(t){ return !t.erledigt && t.faellig && t.faellig < todayISO(); });
+    return list.slice();
+  }
+
+  function sortTodos(list){
+    var arr = list.slice();
+    if(state.todoSort === "manuell"){
+      var orderIndex = {};
+      state.todoOrder.forEach(function(id, idx){ orderIndex[id] = idx; });
+      arr.sort(function(a,b){
+        var ai = orderIndex.hasOwnProperty(a.id) ? orderIndex[a.id] : 999999;
+        var bi = orderIndex.hasOwnProperty(b.id) ? orderIndex[b.id] : 999999;
+        return ai - bi;
+      });
+    } else if(state.todoSort === "faellig-desc"){
+      arr.sort(function(a,b){ return (b.faellig||"0000-00-00").localeCompare(a.faellig||"0000-00-00"); });
+    } else if(state.todoSort === "verlag-asc"){
+      arr.sort(function(a,b){ return a.verlagName.localeCompare(b.verlagName); });
+    } else {
+      arr.sort(function(a,b){ return (a.faellig||"9999-99-99").localeCompare(b.faellig||"9999-99-99"); });
+    }
+    return arr;
+  }
+
+  function todoRemainingLabel(t){
+    if(!t.faellig) return "kein Datum";
+    var wd = workdaysUntil(t.faellig);
+    if(wd === null) return "kein Datum";
+    if(wd < 0) return "überfällig seit " + Math.abs(wd) + " Werktag(en)";
+    if(wd === 0) return "heute fällig";
+    return "noch " + wd + " Werktag(e)";
+  }
+
+  function renderTodoItemPanel(t){
+    var wd = t.faellig ? workdaysUntil(t.faellig) : null;
+    var cls = "todo-panel-item";
+    if(!t.erledigt && wd !== null){
+      if(wd < 0) cls += " overdue";
+      else if(wd <= 3) cls += " soon";
+    }
     return '' +
-      '<div class="reminder-item">' +
-        '<div class="reminder-info">' +
-          '<strong>' + esc(item.verlagName) + '</strong>' + (item.isWebsite ? ' – ' + esc(item.label) : '') +
-          '<div class="reminder-sub">Letzter Kontakt: ' + dateDisp + ' · ' + wdDisp + ' Werktage</div>' +
-        '</div>' +
-        '<button class="btn-small" data-action="quick-contact" data-id="' + item.verlagId + '"' + (item.isWebsite ? ' data-wid="' + item.wid + '"' : '') + '>Heute kontaktiert</button>' +
+      '<div class="' + cls + '" draggable="' + (state.todoSort === "manuell" ? "true" : "false") + '" data-tid="' + t.id + '">' +
+        '<input type="checkbox" data-action="toggle-todo-panel" data-id="' + t.verlagId + '" data-tid="' + t.id + '" ' + (t.erledigt ? "checked" : "") + '>' +
+        '<span class="tpi-text">' + esc(t.text) + '<div class="tpi-meta">' + esc(t.verlagName) + ' · ' + (t.faellig ? formatDate(t.faellig) : "kein Datum") + ' · ' + todoRemainingLabel(t) + '</div></span>' +
       '</div>';
   }
 
-  function renderGlobalTodo(t){
-    var overdueTodo = t.faellig && t.faellig < todayISO();
-    return '' +
-      '<div class="todo-item ' + (overdueTodo ? "todo-overdue" : "") + '">' +
-        '<input type="checkbox" data-action="toggle-todo-global" data-id="' + t.verlagId + '" data-tid="' + t.id + '">' +
-        '<span class="todo-text">' + esc(t.text) + ' <em>(' + esc(t.verlagName) + ')</em></span>' +
-        '<span class="todo-date">' + (t.faellig ? formatDate(t.faellig) : "kein Datum") + '</span>' +
-      '</div>';
-  }
-
-  function renderReminder(){
-    var el = document.getElementById("reminderView");
-    var res = computeReminders();
-    var todos = computeOpenTodos();
-    var overdueHtml = res.overdue.length === 0
-      ? '<p class="empty-hint">Keine überfälligen Kontakte 🎉</p>'
-      : '<div class="reminder-list">' + res.overdue.map(renderReminderItem).join("") + '</div>';
-    var soonHtml = res.soon.length === 0
-      ? '<p class="empty-hint">Nichts aktuell bald fällig.</p>'
-      : '<div class="reminder-list">' + res.soon.map(renderReminderItem).join("") + '</div>';
-    var todosHtml = todos.length === 0
-      ? '<p class="empty-hint">Keine offenen Todos.</p>'
-      : '<div class="todo-list">' + todos.map(renderGlobalTodo).join("") + '</div>';
-
+  function renderTodoPanel(){
+    var el = document.getElementById("todoPanel");
+    if(!el) return;
+    var all = computeAllTodos();
+    var filtered = filterTodos(all);
+    var sorted = sortTodos(filtered);
+    var listHtml = sorted.length === 0
+      ? '<p class="empty-hint" style="color:#fff;">Keine Todos vorhanden.</p>'
+      : sorted.map(renderTodoItemPanel).join("");
     el.innerHTML =
-      '<div class="reminder-section"><h2>🔴 Überfällige Kontakte (≥ 3 Werktage ohne Kontakt)</h2>' + overdueHtml + '</div>' +
-      '<div class="reminder-section"><h2>🟡 Bald fällig (2 Werktage seit Kontakt)</h2>' + soonHtml + '</div>' +
-      '<div class="reminder-section"><h2>📝 Offene Todos</h2>' + todosHtml + '</div>';
+      '<h3>📝 Todo-Übersicht</h3>' +
+      '<div class="todo-panel-filters">' +
+        '<select id="todoFilterSelect">' +
+          '<option value="offen" ' + (state.todoFilter==="offen"?"selected":"") + '>Nur offene</option>' +
+          '<option value="ueberfaellig" ' + (state.todoFilter==="ueberfaellig"?"selected":"") + '>Nur überfällige</option>' +
+          '<option value="alle" ' + (state.todoFilter==="alle"?"selected":"") + '>Alle (inkl. erledigt)</option>' +
+        '</select>' +
+        '<select id="todoSortSelect">' +
+          '<option value="faellig-asc" ' + (state.todoSort==="faellig-asc"?"selected":"") + '>Fälligkeit (aufsteigend)</option>' +
+          '<option value="faellig-desc" ' + (state.todoSort==="faellig-desc"?"selected":"") + '>Fälligkeit (absteigend)</option>' +
+          '<option value="verlag-asc" ' + (state.todoSort==="verlag-asc"?"selected":"") + '>Verlag (A-Z)</option>' +
+          '<option value="manuell" ' + (state.todoSort==="manuell"?"selected":"") + '>Manuelle Reihenfolge</option>' +
+        '</select>' +
+      '</div>' +
+      '<div class="todo-panel-list" id="todoPanelList">' + listHtml + '</div>';
+  }
+
+  function showFaelligeTodosPopup(){
+    var all = computeAllTodos().filter(function(t){ return !t.erledigt; });
+    var faellig = all.filter(function(t){
+      if(!t.faellig) return false;
+      var wd = workdaysUntil(t.faellig);
+      return wd !== null && wd <= 3;
+    });
+    if(faellig.length === 0) return;
+    faellig.sort(function(a,b){ return (a.faellig||"").localeCompare(b.faellig||""); });
+    var overlay = document.getElementById("faelligPopupOverlay");
+    if(!overlay) return;
+    var itemsHtml = faellig.map(function(t){
+      return '<div class="todo-fällig-item"><strong>' + esc(t.verlagName) + '</strong>: ' + esc(t.text) + ' <span style="color:var(--muted);">(' + todoRemainingLabel(t) + ', fällig ' + formatDate(t.faellig) + ')</span></div>';
+    }).join("");
+    overlay.innerHTML =
+      '<div class="confirm-panel">' +
+        '<p><strong>⏰ Fällige Todos</strong> – folgende Todos sind in ≤ 3 Werktagen fällig oder bereits überfällig:</p>' +
+        '<div class="todo-fällig-list">' + itemsHtml + '</div>' +
+        '<div class="confirm-actions"><button class="confirm-cancel" data-confirm="ok">Schließen</button></div>' +
+      '</div>';
+    overlay.classList.remove("hidden");
+    function handler(e){
+      var btn = e.target.closest("[data-confirm]");
+      if(!btn){
+        if(e.target.id === "faelligPopupOverlay"){
+          overlay.classList.add("hidden");
+          overlay.innerHTML = "";
+          overlay.removeEventListener("click", handler);
+        }
+        return;
+      }
+      overlay.classList.add("hidden");
+      overlay.innerHTML = "";
+      overlay.removeEventListener("click", handler);
+    }
+    overlay.addEventListener("click", handler);
   }
 
   var DETAIL_COLUMNS = [
@@ -1588,7 +1659,7 @@ main#mainContent{padding:0 20px 30px 20px;}
   function renderApp(){
     renderKPIs();
     renderBoard();
-    if(state.currentTab === "reminder") renderReminder();
+    renderTodoPanel();
     if(state.currentTab === "detail") renderDetail();
     renderModal();
   }
@@ -1599,9 +1670,8 @@ main#mainContent{padding:0 20px 30px 20px;}
       btn.classList.add("active");
       state.currentTab = btn.dataset.tab;
       document.getElementById("kanbanView").classList.toggle("hidden", state.currentTab !== "kanban");
-      document.getElementById("reminderView").classList.toggle("hidden", state.currentTab !== "reminder");
       document.getElementById("detailView").classList.toggle("hidden", state.currentTab !== "detail");
-      document.getElementById("kanbanToolbar").classList.toggle("hidden", state.currentTab === "reminder");
+      document.getElementById("kanbanToolbar").classList.toggle("hidden", false);
       renderApp();
     });
   });
@@ -2030,30 +2100,66 @@ main#mainContent{padding:0 20px 30px 20px;}
     }
   });
 
-  document.getElementById("reminderView").addEventListener("click", function(e){
-    var btn = e.target.closest("[data-action]");
-    if(!btn) return;
-    var action = btn.dataset.action;
-    var id = btn.dataset.id;
-    var v = state.verlage[id];
-    if(!v) return;
-
-    if(action === "quick-contact"){
-      var wid = btn.dataset.wid;
-      if(wid && v.websites && v.websites[wid]){
-        v.websites[wid].letzterKontakt = todayISO();
-      } else {
-        v.letzterKontakt = todayISO();
-      }
-      renderApp();
-      persist(id);
-    } else if(action === "toggle-todo-global"){
-      var tid = btn.dataset.tid;
-      var t = (v.todos || []).find(function(tt){ return tt.id === tid; });
-      if(t) t.erledigt = true;
-      renderApp();
-      persist(id);
+  var todoPanelEl = document.getElementById("todoPanel");
+  todoPanelEl.addEventListener("change", function(e){
+    if(e.target.id === "todoFilterSelect"){
+      state.todoFilter = e.target.value;
+      renderTodoPanel();
+      return;
     }
+    if(e.target.id === "todoSortSelect"){
+      state.todoSort = e.target.value;
+      renderTodoPanel();
+      return;
+    }
+    if(e.target.dataset.action === "toggle-todo-panel"){
+      var vid = e.target.dataset.id;
+      var tid = e.target.dataset.tid;
+      var v = state.verlage[vid];
+      if(v){
+        var t = (v.todos||[]).find(function(tt){ return tt.id===tid; });
+        if(t){ t.erledigt = !t.erledigt; persist(vid); renderApp(); }
+      }
+    }
+  });
+  todoPanelEl.addEventListener("dragstart", function(e){
+    if(state.todoSort !== "manuell") return;
+    var item = e.target.closest(".todo-panel-item");
+    if(item){
+      state.todoDraggingId = item.dataset.tid;
+      e.dataTransfer.effectAllowed = "move";
+    }
+  });
+  todoPanelEl.addEventListener("dragover", function(e){
+    if(state.todoSort !== "manuell") return;
+    var item = e.target.closest(".todo-panel-item");
+    if(item) e.preventDefault();
+  });
+  todoPanelEl.addEventListener("drop", function(e){
+    if(state.todoSort !== "manuell") return;
+    var item = e.target.closest(".todo-panel-item");
+    if(!item || !state.todoDraggingId){ return; }
+    e.preventDefault();
+    var targetTid = item.dataset.tid;
+    if(targetTid === state.todoDraggingId){ state.todoDraggingId = null; return; }
+    var all = computeAllTodos();
+    var filtered = filterTodos(all);
+    var sorted = sortTodos(filtered);
+    var ids = sorted.map(function(t){ return t.id; });
+    var fromIdx = ids.indexOf(state.todoDraggingId);
+    var toIdx = ids.indexOf(targetTid);
+    if(fromIdx === -1 || toIdx === -1){ state.todoDraggingId = null; return; }
+    ids.splice(fromIdx,1);
+    ids.splice(toIdx,0,state.todoDraggingId);
+    var allIds = all.map(function(t){ return t.id; });
+    var remaining = state.todoOrder.filter(function(id){ return allIds.indexOf(id) !== -1 && ids.indexOf(id) === -1; });
+    var newOrder = ids.concat(remaining);
+    state.todoOrder = newOrder;
+    state.todoDraggingId = null;
+    if(usingFirebase && dbRefTodoOrder){
+      dbRefTodoOrder.set(newOrder).catch(function(err){ console.error("TodoOrder speichern fehlgeschlagen:", err); });
+    }
+    renderTodoPanel();
   });
 
   setSyncStatus("connecting");
