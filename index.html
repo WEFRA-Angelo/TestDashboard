@@ -295,9 +295,20 @@ main#mainContent{padding:0 20px 30px 20px;}
   @media (max-width:700px){
     .field-grid{grid-template-columns:1fr;}
     .board-column{min-width:82vw;max-width:82vw;}
-    .kpi-row{grid-template-columns:repeat(2,1fr);}
+    .kpi-row{grid-template-columns:repeat(3,1fr);gap:6px;}
+    .kpi-tile{padding:6px 8px;}
+    .kpi-tile .kpi-value{font-size:1rem;}
+    .kpi-tile .kpi-label{font-size:0.65rem;}
+    .progress-bar-outer{height:4px;}
     .modal-panel{width:100%;}
-    .topbar-row1 h1{font-size:1.05rem;}
+    header.topbar{padding:8px 12px 0 12px;}
+    .topbar-row1 h1{font-size:0.95rem;}
+    .topbar-row1 h1 img{height:20px;}
+    .sync-indicator{padding:4px 8px;font-size:0.72rem;margin-bottom:4px;}
+    .tabs .tab-btn{padding:7px 10px;font-size:0.8rem;}
+  }
+  @media (max-width:480px){
+    .kpi-row{grid-template-columns:repeat(2,1fr);}
   }
 </style>
 </head>
