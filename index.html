@@ -295,17 +295,17 @@ main#mainContent{padding:0 20px 30px 20px;}
   @media (max-width:700px){
     .field-grid{grid-template-columns:1fr;}
     .board-column{min-width:82vw;max-width:82vw;}
-    .kpi-row{grid-template-columns:repeat(3,1fr);gap:6px;}
+    header.topbar{padding:8px 12px 0 12px;}
+    .topbar-row1 h1{font-size:0.95rem;margin-bottom:4px;}
+    .topbar-row1 h1 img{height:20px;}
+    .kpi-row{grid-template-columns:repeat(2,1fr);gap:6px;margin:6px 0 8px 0;}
     .kpi-tile{padding:6px 8px;}
     .kpi-tile .kpi-value{font-size:1rem;}
     .kpi-tile .kpi-label{font-size:0.65rem;}
     .progress-bar-outer{height:4px;}
     .modal-panel{width:100%;}
-    header.topbar{padding:8px 12px 0 12px;}
-    .topbar-row1 h1{font-size:0.95rem;}
-    .topbar-row1 h1 img{height:20px;}
-    .sync-indicator{padding:4px 8px;font-size:0.72rem;margin-bottom:4px;}
-    .tabs .tab-btn{padding:7px 10px;font-size:0.8rem;}
+    .tabs{padding-top:2px;gap:4px;}
+    .tabs .tab-btn{padding:6px 10px;font-size:0.78rem;}
   }
   @media (max-width:480px){
     .kpi-row{grid-template-columns:repeat(2,1fr);}
@@ -316,8 +316,7 @@ main#mainContent{padding:0 20px 30px 20px;}
 
 <header class="topbar">
   <div class="topbar-row1">
-    <h1><img src="attachment://cmrngnmje0003ke0aj2k37jut" alt="Logo" style="height:28px;width:auto;vertical-align:middle;margin-right:8px;display:inline-block;"> Publisher Automation Status</h1>
-    <div class="sync-indicator"><span class="sync-dot connecting" id="syncDot"></span><span id="syncText">Verbinde...</span></div>
+    <h1><img src="attachment://cmrngnmje0003ke0aj2k37jut" alt="Logo" style="height:34px;width:auto;vertical-align:middle;margin-right:10px;"> Publisher Automation Status</h1>
     <div class="darkmode-toggle" id="darkModeToggle" role="button" title="Dark Mode umschalten"><span>🌙 Dark Mode</span><span class="switch"><span class="knob"></span></span></div>
   </div>
   <div class="kpi-row" id="kpiRow"></div>
@@ -384,8 +383,8 @@ main#mainContent{padding:0 20px 30px 20px;}
 <div id="confirmOverlay" class="confirm-overlay hidden"></div>
 
 <footer>
-  ⚠️ Testmodus / Demo-Daten, echte Verlagsdaten werden im nächsten Schritt eingepflegt.
-</footer>
+  <div>M.I.A. by WEFRA – Beta Version 1.1 Dashboard Publisher Auto Report</div>
+  <div class="sync-indicator" style="display:inline-flex;margin-top:6px;"><span class="sync-dot connecting" id="syncDot"></span><span id="syncText">Verbinde...</span></div>
 
 <script>
 (function(){
