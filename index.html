@@ -9,13 +9,13 @@
 <script src="https://cdn.jsdelivr.net/npm/firebase@10.12.2/firebase-storage-compat.js"></script>
 <style>
   :root{
-    --bg:#f2f4f8;
+    --bg:#f5f3fc;
     --card-bg:#ffffff;
     --text:#1f2733;
     --muted:#6b7688;
     --border:#e1e5eb;
-    --accent:#3a5ded;
-    --accent-dark:#2c46c4;
+    --accent:#7b6ef6;
+    --accent-dark:#6357d6;
     --red:#e74c3c;
     --yellow:#f2a93b;
     --green:#27ae60;
@@ -24,13 +24,32 @@
     --shadow:0 2px 8px rgba(20,30,60,0.08);
     --shadow-hover:0 6px 18px rgba(20,30,60,0.16);
   }
+  body.dark-mode{
+    --bg:#0d0e17;
+    --card-bg:#181a29;
+    --text:#f2f0fa;
+    --muted:#9c98b8;
+    --border:#2f2d4a;
+    --accent:#9b90fb;
+    --accent-dark:#7b6ef6;
+    --shadow:0 2px 8px rgba(0,0,0,0.4);
+    --shadow-hover:0 6px 18px rgba(0,0,0,0.55);
+  }
   *{box-sizing:border-box;}
   body{margin:0;font-family:"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--text);}
   .hidden{display:none !important;}
   header.topbar{
-    position:sticky;top:0;z-index:50;background:linear-gradient(135deg,#1f2b52,#2c46c4);
+    position:sticky;top:0;z-index:50;background:linear-gradient(135deg,#4b3fa8,#7b6ef6);
     color:#fff;padding:14px 20px 0 20px;box-shadow:0 3px 10px rgba(0,0,0,0.15);
   }
+  body.dark-mode header.topbar{
+    background:linear-gradient(135deg,#0d0e17,#2a2550);
+  }
+  .darkmode-toggle{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.12);padding:6px 12px;border-radius:20px;font-size:0.85rem;margin-bottom:8px;cursor:pointer;user-select:none;box-shadow:0 2px 6px rgba(0,0,0,0.15);}
+  .darkmode-toggle .switch{position:relative;width:38px;height:20px;background:rgba(255,255,255,0.25);border-radius:12px;flex-shrink:0;transition:background .2s;}
+  .darkmode-toggle .switch .knob{position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,0.3);}
+  body.dark-mode .darkmode-toggle .switch{background:var(--accent);}
+  body.dark-mode .darkmode-toggle .switch .knob{transform:translateX(18px);}
   .topbar-row1{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;}
   .topbar-row1 h1{font-size:1.25rem;margin:0 0 8px 0;font-weight:600;}
   .sync-indicator{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.12);padding:6px 12px;border-radius:20px;font-size:0.85rem;margin-bottom:8px;}
@@ -228,6 +247,7 @@ main#mainContent{padding:0 20px 30px 20px;}
   <div class="topbar-row1">
     <h1>📚 Publisher Automation Status</h1>
     <div class="sync-indicator"><span class="sync-dot connecting" id="syncDot"></span><span id="syncText">Verbinde...</span></div>
+    <div class="darkmode-toggle" id="darkModeToggle" role="button" title="Dark Mode umschalten"><span>🌙 Dark Mode</span><span class="switch"><span class="knob"></span></span></div>
   </div>
   <div class="kpi-row" id="kpiRow"></div>
   <div class="tabs">
@@ -1920,6 +1940,19 @@ main#mainContent{padding:0 20px 30px 20px;}
   renderApp();
   initFirebase();
 
+  (function(){
+    var body = document.body;
+    var toggle = document.getElementById("darkModeToggle");
+    var saved = null;
+    try { saved = localStorage.getItem("darkMode"); } catch(e){}
+    if(saved === "1"){ body.classList.add("dark-mode"); }
+    if(toggle){
+      toggle.addEventListener("click", function(){
+        body.classList.toggle("dark-mode");
+        try { localStorage.setItem("darkMode", body.classList.contains("dark-mode") ? "1" : "0"); } catch(e){}
+      });
+    }
+  })();
 })();
 </script>
 </body>
