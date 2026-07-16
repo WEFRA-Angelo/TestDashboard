@@ -292,27 +292,36 @@ main#mainContent{padding:0 20px 30px 20px;}
   .reminder-item{display:flex;justify-content:space-between;align-items:center;gap:10px;background:#f7f8fb;padding:10px 12px;border-radius:9px;flex-wrap:wrap;}
   .reminder-sub{color:var(--muted);font-size:0.8rem;margin-top:2px;}
 
-  .todo-panel{background:rgba(245,130,13,0.12);border:2px solid var(--accent);border-radius:var(--radius);min-width:290px;max-width:320px;flex:1 0 290px;padding:10px 12px;max-height:calc(100vh - 230px);overflow-y:auto;display:flex;flex-direction:column;gap:8px;}
-  .todo-panel .todo-panel-header{display:flex;justify-content:space-between;align-items:center;padding:2px 2px 8px 2px;font-weight:700;font-size:0.95rem;border-bottom:2px solid rgba(245,130,13,0.35);margin-bottom:4px;}
-  .todo-panel .todo-panel-count{background:#fff;border-radius:12px;padding:2px 9px;font-size:0.8rem;color:var(--muted);}
-  body.dark-mode .todo-panel .todo-panel-count{background:#1b1f36;color:var(--text);}
+  .todo-panel{background:linear-gradient(160deg, rgba(245,130,13,0.18), rgba(245,130,13,0.06));border:2px solid var(--accent);border-radius:16px;padding:10px 12px;max-height:calc(100vh - 230px);overflow-y:auto;display:flex;flex-direction:column;gap:8px;box-shadow:0 4px 16px rgba(245,130,13,0.25);}
+  #todoPanel.todo-panel{min-width:340px;max-width:380px;flex:1.2 0 340px;}
+  .todo-panel .todo-panel-header{display:flex;justify-content:space-between;align-items:center;padding:2px 2px 8px 2px;font-weight:700;font-size:0.95rem;border-bottom:2px solid rgba(245,130,13,0.35);margin-bottom:4px;flex-wrap:wrap;gap:6px;}
+  .todo-panel-progress{width:100%;display:flex;flex-direction:column;gap:4px;order:3;}
+  .todo-panel-progress-label{font-size:0.72rem;font-weight:600;color:var(--muted);}
+  .todo-panel-progress-outer{width:100%;height:7px;background:rgba(0,0,0,0.08);border-radius:5px;overflow:hidden;}
+  .todo-panel-progress-inner{height:100%;background:linear-gradient(90deg,var(--accent),var(--green));border-radius:5px;transition:width .3s;}
+  body.dark-mode .todo-panel-progress-outer{background:rgba(255,255,255,0.1);}
   .todo-panel-filters select{padding:5px 7px;border-radius:6px;border:1px solid var(--border);font-size:0.78rem;background:#fff;color:var(--text);}
   .todo-panel-list{display:flex;flex-direction:column;gap:6px;}
-  .todo-panel-item{display:flex;align-items:center;gap:8px;background:#fff;color:var(--text);padding:6px 8px;border-radius:7px;font-size:0.8rem;}
-  .todo-panel-item.overdue{background:#fdeceb;}
-  .todo-panel-item.soon{background:#fff6e0;}
+  .todo-panel-item{display:flex;align-items:center;gap:8px;background:#fff;color:var(--text);padding:6px 8px;border-radius:7px;font-size:0.8rem;border-left:4px solid transparent;transition:background .15s,border-color .15s;}
+  .todo-panel-item .tpi-icon{flex-shrink:0;font-size:0.9rem;}
+  .todo-panel-item.tpi-done{opacity:0.6;}
+  .todo-panel-item.tpi-done .tpi-text{text-decoration:line-through;color:var(--muted);}
+  .todo-panel-item.tpi-done .tpi-check{color:var(--green);font-weight:700;}
+  .todo-panel-item.overdue{background:#fdeceb;border-left-color:var(--red);}
+  .todo-panel-item.soon{background:#fff6e0;border-left-color:var(--yellow);}
   .todo-panel-item .tpi-text{flex:1;min-width:0;}
   .todo-panel-item .tpi-meta{color:var(--muted);font-size:0.72rem;}
   body.dark-mode .todo-panel-item{background:#1b1f36;color:var(--text);}
-  body.dark-mode .todo-panel-item.overdue{background:#3a1f1f;}
+  body.dark-mode .todo-panel-item.overdue{background:#3a1f1f;border-left-color:var(--red);}
+  body.dark-mode .todo-panel-item.soon{background:#3a3320;border-left-color:var(--yellow);}
+  body.dark-mode .todo-panel-item.tpi-done .tpi-text{color:var(--muted);}
   body.dark-mode .todo-panel-filters select{background:#1b1f36;color:var(--text);border:1px solid var(--border);}
   .todo-fällig-overlay .confirm-panel{max-width:520px;}
   .todo-fällig-list{display:flex;flex-direction:column;gap:8px;margin-bottom:14px;max-height:320px;overflow-y:auto;}
   .todo-fällig-item{background:#f7f8fb;padding:8px 10px;border-radius:8px;font-size:0.85rem;}
   body.dark-mode .todo-fällig-item{background:#1b1f36;color:var(--text);}
   @media (max-width:700px){
-    .field-grid{grid-template-columns:1fr;}
-    .board-column{min-width:82vw;max-width:82vw;}
+    #todoPanel.todo-panel{min-width:82vw;max-width:82vw;flex:1 0 82vw;}
     header.topbar{padding:8px 12px 0 12px;}
     .topbar-row1 h1{font-size:0.95rem;margin-bottom:4px;}
     .topbar-row1 h1 img{height:20px;}
@@ -345,7 +354,7 @@ main#mainContent{padding:0 20px 30px 20px;}
 </header>
 
 <div class="toolbar" id="kanbanToolbar">
-  <input id="searchInput" type="text" placeholder="🔍 Verlag, Kontakt suchen...">
+  <input id="searchInput" type="text" placeholder="🔍 Verlag, Kontakt, Website, Notiz, Todo durchsuchen...">
   <select id="filterStatus">
     <option value="all">Alle Status</option>
     <option value="pipeline">Pipeline</option>
@@ -391,7 +400,7 @@ main#mainContent{padding:0 20px 30px 20px;}
       <div class="card-list" data-status="automatisiert"></div>
     </div>
     <div class="board-column todo-panel" id="todoPanel">
-      <div class="column-header todo-panel-header"><span>📝 Aufgaben</span><span class="column-count todo-panel-count" id="todoPanelCount">0</span></div>
+      <div class="column-header todo-panel-header"><span>📝 Aufgaben</span><span class="column-count todo-panel-count" id="todoPanelCount">0</span><div class="todo-panel-progress" id="todoPanelProgress"><span class="todo-panel-progress-label" id="todoPanelProgressLabel">0 von 0 erledigt</span><div class="todo-panel-progress-outer"><div class="todo-panel-progress-inner" id="todoPanelProgressInner" style="width:0%"></div></div></div></div>
       <div class="column-sort todo-panel-filters">
         <select id="todoFilterSelect" style="width:100%;margin-bottom:6px;">
           <option value="offen">Nur offene</option>
@@ -952,16 +961,43 @@ main#mainContent{padding:0 20px 30px 20px;}
       '<div class="kpi-tile ' + (overdueCount > 0 ? "kpi-alert" : "") + '"><div class="kpi-value">' + overdueCount + '</div><div class="kpi-label">überfällige Kontakte</div></div>';
   }
 
+  function getSearchMatchHint(v, searchTerm){
+    var s = (searchTerm||"").trim().toLowerCase();
+    if(!s) return null;
+    var nameHay = ((v.name||"") + " " + personName(v.kontaktVerlag) + " " + personName(v.zustaendigIntern)).toLowerCase();
+    if(nameHay.indexOf(s) !== -1) return null;
+    var websites = Object.values(v.websites || {});
+    for(var i=0;i<websites.length;i++){
+      if((websites[i].name||"").toLowerCase().indexOf(s) !== -1){
+        return {type:"website", value: websites[i].name};
+      }
+    }
+    var todos = v.todos || [];
+    for(var j=0;j<todos.length;j++){
+      if((todos[j].text||"").toLowerCase().indexOf(s) !== -1){
+        var txt = todos[j].text || "";
+        return {type:"todo", value: txt.length > 40 ? txt.slice(0,40) + "…" : txt};
+      }
+    }
+    if((v.notizen||"").toLowerCase().indexOf(s) !== -1){
+      return {type:"notiz", value: null};
+    }
+    return null;
+  }
   function passesFilter(v){
     var s = state.filter.search.trim().toLowerCase();
     if(s){
-      var hay = ((v.name||"") + " " + personName(v.kontaktVerlag) + " " + personName(v.zustaendigIntern)).toLowerCase();
+      var hayParts = [v.name||"", personName(v.kontaktVerlag), personName(v.zustaendigIntern), v.notizen||""];
+      Object.values(v.websites || {}).forEach(function(w){ hayParts.push(w.name||""); });
+      (v.todos||[]).forEach(function(t){ hayParts.push(t.text||""); });
+      var hay = hayParts.join(" ").toLowerCase();
       if(hay.indexOf(s) === -1) return false;
     }
     if(state.filter.status !== "all" && v.status !== state.filter.status) return false;
     if(state.filter.prioritaet !== "all" && v.prioritaet !== state.filter.prioritaet) return false;
     return true;
   }
+  function passesFilterOld(v){
 
   function renderCard(id, v){
     var ampel = getVerlagAmpel(v);
@@ -988,9 +1024,14 @@ main#mainContent{padding:0 20px 30px 20px;}
           '<div><span class="meta-label">Zuständig:</span> ' + esc(personName(v.zustaendigIntern)) + '</div>' +
           '<div><span class="meta-label">Letzter Kontakt:</span> ' + lastContactDisplay + '</div>' +
         '</div>' +
+        (function(){
+          var hint = getSearchMatchHint(v, state.filter.search);
+          if(!hint) return "";
+          var labelMap = {website:"🔍 Treffer in Website: ", todo:"🔍 Treffer in Todo: ", notiz:"🔍 Treffer in Notiz"};
+          var text = labelMap[hint.type] + (hint.value ? esc(hint.value) : "");
+          return '<div style="font-size:0.75rem;color:var(--accent-dark);margin:-4px 0 8px 0;">' + text + '</div>';
+        })() +
         '<div class="card-footer no-card-click">' +
-          '<select class="status-select no-card-click">' + options + '</select>' +
-        '</div>' +
       '</div>';
   }
 
@@ -1479,16 +1520,24 @@ main#mainContent{padding:0 20px 30px 20px;}
   function renderTodoItemPanel(t){
     var wd = t.faellig ? workdaysUntil(t.faellig) : null;
     var cls = "todo-panel-item";
-    if(!t.erledigt && wd !== null){
-      if(wd < 0) cls += " overdue";
-      else if(wd <= 3) cls += " soon";
+    var icon = "";
+    if(t.erledigt){
+      cls += " tpi-done";
+    } else if(wd !== null){
+      if(wd < 0){ cls += " overdue"; icon = '<span class="tpi-icon">⚠️</span>'; }
+      else if(wd <= 3){ cls += " soon"; icon = '<span class="tpi-icon">⏳</span>'; }
     }
+    var checkboxHtml = t.erledigt
+      ? '<span class="tpi-check">✓</span><input type="checkbox" style="display:none;" data-action="toggle-todo-panel" data-id="' + t.verlagId + '" data-tid="' + t.id + '" checked>'
+      : '<input type="checkbox" data-action="toggle-todo-panel" data-id="' + t.verlagId + '" data-tid="' + t.id + '">';
     return '' +
       '<div class="' + cls + '" draggable="' + (state.todoSort === "manuell" ? "true" : "false") + '" data-tid="' + t.id + '">' +
-        '<input type="checkbox" data-action="toggle-todo-panel" data-id="' + t.verlagId + '" data-tid="' + t.id + '" ' + (t.erledigt ? "checked" : "") + '>' +
+        checkboxHtml +
+        icon +
         '<span class="tpi-text">' + esc(t.text) + '<div class="tpi-meta">' + esc(t.verlagName) + ' · ' + (t.faellig ? formatDate(t.faellig) : "kein Datum") + ' · ' + todoRemainingLabel(t) + '</div></span>' +
       '</div>';
   }
+  function renderTodoItemPanelOld(t){
 
   function renderTodoPanel(){
     var el = document.getElementById("todoPanelList");
@@ -1502,22 +1551,21 @@ main#mainContent{padding:0 20px 30px 20px;}
     if(filterSelect && filterSelect.value !== state.todoFilter) filterSelect.value = state.todoFilter;
     var sortSelect = document.getElementById("todoSortSelect");
     if(sortSelect && sortSelect.value !== state.todoSort) sortSelect.value = state.todoSort;
+    var allForProgress = computeAllTodos();
+    var doneCount = allForProgress.filter(function(t){ return t.erledigt; }).length;
+    var totalCount = allForProgress.length;
+    var progressLabel = document.getElementById("todoPanelProgressLabel");
+    var progressInner = document.getElementById("todoPanelProgressInner");
+    if(progressLabel) progressLabel.textContent = doneCount + " von " + totalCount + " erledigt";
+    if(progressInner) progressInner.style.width = (totalCount > 0 ? Math.round((doneCount/totalCount)*100) : 0) + "%";
     el.innerHTML = sorted.length === 0
       ? '<p class="empty-hint">Keine Todos vorhanden.</p>'
       : sorted.map(renderTodoItemPanel).join("");
   }
-
-  function showFaelligeTodosPopup(){
-    var all = computeAllTodos().filter(function(t){ return !t.erledigt; });
-    var faellig = all.filter(function(t){
-      if(!t.faellig) return false;
-      var wd = workdaysUntil(t.faellig);
-      return wd !== null && wd <= 3;
-    });
-    if(faellig.length === 0) return;
-    faellig.sort(function(a,b){ return (a.faellig||"").localeCompare(b.faellig||""); });
-    var overlay = document.getElementById("faelligPopupOverlay");
-    if(!overlay) return;
+  function renderTodoPanelOldTail(){
+    var el = document.getElementById("__none__");
+    var sorted = [];
+    el && (el.innerHTML = sorted.length === 0
     var itemsHtml = faellig.map(function(t){
       return '<div class="todo-fällig-item"><strong>' + esc(t.verlagName) + '</strong>: ' + esc(t.text) + ' <span style="color:var(--muted);">(' + todoRemainingLabel(t) + ', fällig ' + formatDate(t.faellig) + ')</span></div>';
     }).join("");
