@@ -390,6 +390,24 @@ main#mainContent{padding:0 20px 30px 20px;}
       <div class="column-sort"><select class="col-sort-select" data-status="automatisiert"></select></div>
       <div class="card-list" data-status="automatisiert"></div>
     </div>
+    <div class="board-column todo-panel" id="todoPanel">
+      <div class="column-header todo-panel-header"><span>📝 Aufgaben</span><span class="column-count todo-panel-count" id="todoPanelCount">0</span></div>
+      <div class="column-sort todo-panel-filters">
+        <select id="todoFilterSelect" style="width:100%;margin-bottom:6px;">
+          <option value="offen">Nur offene</option>
+          <option value="ueberfaellig">Nur überfällige</option>
+          <option value="erledigt">Nur erledigte</option>
+          <option value="alle">Alle (inkl. erledigt)</option>
+        </select>
+        <select id="todoSortSelect" style="width:100%;">
+          <option value="faellig-asc">Fälligkeit (aufsteigend)</option>
+          <option value="faellig-desc">Fälligkeit (absteigend)</option>
+          <option value="verlag-asc">Verlag (A-Z)</option>
+          <option value="manuell">Manuelle Reihenfolge</option>
+        </select>
+      </div>
+      <div class="card-list todo-panel-list" id="todoPanelList"></div>
+    </div>
   </section>
 
   <section id="detailView" class="hidden"></section>
@@ -1425,6 +1443,7 @@ main#mainContent{padding:0 20px 30px 20px;}
   function filterTodos(list){
     if(state.todoFilter === "offen") return list.filter(function(t){ return !t.erledigt; });
     if(state.todoFilter === "ueberfaellig") return list.filter(function(t){ return !t.erledigt && t.faellig && t.faellig < todayISO(); });
+    if(state.todoFilter === "erledigt") return list.filter(function(t){ return t.erledigt; });
     return list.slice();
   }
 
@@ -1472,30 +1491,20 @@ main#mainContent{padding:0 20px 30px 20px;}
   }
 
   function renderTodoPanel(){
-    var el = document.getElementById("todoPanel");
+    var el = document.getElementById("todoPanelList");
+    var countEl = document.getElementById("todoPanelCount");
     if(!el) return;
     var all = computeAllTodos();
     var filtered = filterTodos(all);
     var sorted = sortTodos(filtered);
-    var listHtml = sorted.length === 0
-      ? '<p class="empty-hint" style="color:#fff;">Keine Todos vorhanden.</p>'
+    if(countEl) countEl.textContent = sorted.length;
+    var filterSelect = document.getElementById("todoFilterSelect");
+    if(filterSelect && filterSelect.value !== state.todoFilter) filterSelect.value = state.todoFilter;
+    var sortSelect = document.getElementById("todoSortSelect");
+    if(sortSelect && sortSelect.value !== state.todoSort) sortSelect.value = state.todoSort;
+    el.innerHTML = sorted.length === 0
+      ? '<p class="empty-hint">Keine Todos vorhanden.</p>'
       : sorted.map(renderTodoItemPanel).join("");
-    el.innerHTML =
-      '<h3>📝 Todo-Übersicht</h3>' +
-      '<div class="todo-panel-filters">' +
-        '<select id="todoFilterSelect">' +
-          '<option value="offen" ' + (state.todoFilter==="offen"?"selected":"") + '>Nur offene</option>' +
-          '<option value="ueberfaellig" ' + (state.todoFilter==="ueberfaellig"?"selected":"") + '>Nur überfällige</option>' +
-          '<option value="alle" ' + (state.todoFilter==="alle"?"selected":"") + '>Alle (inkl. erledigt)</option>' +
-        '</select>' +
-        '<select id="todoSortSelect">' +
-          '<option value="faellig-asc" ' + (state.todoSort==="faellig-asc"?"selected":"") + '>Fälligkeit (aufsteigend)</option>' +
-          '<option value="faellig-desc" ' + (state.todoSort==="faellig-desc"?"selected":"") + '>Fälligkeit (absteigend)</option>' +
-          '<option value="verlag-asc" ' + (state.todoSort==="verlag-asc"?"selected":"") + '>Verlag (A-Z)</option>' +
-          '<option value="manuell" ' + (state.todoSort==="manuell"?"selected":"") + '>Manuelle Reihenfolge</option>' +
-        '</select>' +
-      '</div>' +
-      '<div class="todo-panel-list" id="todoPanelList">' + listHtml + '</div>';
   }
 
   function showFaelligeTodosPopup(){
