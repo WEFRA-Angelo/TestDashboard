@@ -420,6 +420,7 @@ main#mainContent{padding:0 20px 30px 20px;}
   var dbRef2 = null;
   var dbRefTools = null;
   var dbRefSysteme = null;
+  var dbRefTodoOrder = null;
   var storageRef = null;
   var usingFirebase = false;
   var saveTimers = {};
@@ -442,8 +443,14 @@ main#mainContent{padding:0 20px 30px 20px;}
     detailSort: {key:"name", dir:"asc"},
     detailExpanded: {},
     newPersonOpenFor: null,
-    uploadBusy: {}
+    uploadBusy: {},
+    todoFilter: "offen",
+    todoSort: "faellig-asc",
+    todoOrder: [],
+    todoDraggingId: null,
+    popupShown: false
   };
+  var _unused_state_close = {
 
   function uid(prefix){
     return (prefix||"id") + "_" + Date.now().toString(36) + Math.random().toString(36).slice(2,9);
@@ -826,22 +833,29 @@ main#mainContent{padding:0 20px 30px 20px;}
       }, function(err){
         console.error("Firebase Systeme-Listener-Fehler:", err);
       });
+
+      dbRefTodoOrder = db.ref("todoReihenfolge");
+      dbRefTodoOrder.on("value", function(snap){
+        var val = snap.val();
+        state.todoOrder = Array.isArray(val) ? val : [];
+        renderApp();
+      }, function(err){
+        console.error("Firebase TodoOrder-Listener-Fehler:", err);
+      });
+
+      dbRef.once("value").then(function(){
+        if(!state.popupShown){
+          state.popupShown = true;
+          setTimeout(function(){ showFaelligeTodosPopup(); }, 1000);
+        }
+      });
     } catch(err){
       console.error("Firebase Initialisierung fehlgeschlagen:", err);
       fallbackLocal();
     }
   }
-
-  function persist(id){
-    clearTimeout(saveTimers[id]);
-    saveTimers[id] = setTimeout(function(){
-      if(usingFirebase && dbRef && state.verlage[id]){
-        dbRef.child(id).set(state.verlage[id]).catch(function(err){
-          console.error("Speicherfehler:", err);
-          setSyncStatus("offline");
-        });
-      }
-    }, 400);
+  function _removed_dup(){
+      dbRefSysteme.on("value", function(snap){
   }
 
   function removeVerlagRemote(id){
