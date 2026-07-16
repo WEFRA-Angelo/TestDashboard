@@ -337,6 +337,7 @@ main#mainContent{padding:0 20px 30px 20px;}
     <div class="darkmode-toggle" id="darkModeToggle" role="button" title="Dark Mode umschalten"><span>🌙 Dark Mode</span><span class="switch"><span class="knob"></span></span></div>
   </div>
   <div class="kpi-row" id="kpiRow"></div>
+  <div class="todo-panel" id="todoPanel"></div>
   <div class="tabs">
     <button class="tab-btn active" data-tab="kanban">Status Board</button>
     <button class="tab-btn" data-tab="detail">📊 Übersicht</button>
@@ -396,6 +397,7 @@ main#mainContent{padding:0 20px 30px 20px;}
 
 <div id="modalOverlay" class="modal-overlay hidden"></div>
 <div id="confirmOverlay" class="confirm-overlay hidden"></div>
+<div id="faelligPopupOverlay" class="confirm-overlay todo-fällig-overlay hidden"></div>
 
 <footer>
   <div>M.I.A. by WEFRA – Beta Version 1.1 Dashboard Publisher Auto Report</div>
@@ -502,13 +504,36 @@ main#mainContent{padding:0 20px 30px 20px;}
     }
     return count;
   }
-  function ampelInfo(dateStr){
-    if(!dateStr) return {level:"grey", workdays:null, text:"Kein Kontaktdatum erfasst"};
-    var wd = workdaysSince(dateStr);
-    if(wd >= 3) return {level:"red", workdays:wd, text: wd + " Werktage seit letztem Kontakt – überfällig"};
-    if(wd === 2) return {level:"yellow", workdays:wd, text: wd + " Werktage seit letztem Kontakt – bald fällig"};
-    return {level:"green", workdays:wd, text: wd + " Werktag(e) seit letztem Kontakt"};
+  function workdaysUntil(dateStr){
+    if(!dateStr) return null;
+    var target = new Date(dateStr + "T00:00:00");
+    if(isNaN(target.getTime())) return null;
+    var today = new Date();
+    today.setHours(0,0,0,0);
+    target.setHours(0,0,0,0);
+    if(target.getTime() === today.getTime()) return 0;
+    var count = 0;
+    var cur = new Date(today);
+    var forward = target > today;
+    if(forward){
+      cur.setDate(cur.getDate()+1);
+      while(cur <= target){
+        var day = cur.getDay();
+        if(day !== 0 && day !== 6) count++;
+        cur.setDate(cur.getDate()+1);
+      }
+      return count;
+    } else {
+      cur.setDate(cur.getDate()-1);
+      while(cur >= target){
+        var day2 = cur.getDay();
+        if(day2 !== 0 && day2 !== 6) count++;
+        cur.setDate(cur.getDate()-1);
+      }
+      return -count;
+    }
   }
+  function ampelInfo(dateStr){
   function getEffectiveContacts(v){
     if(v.websitesUnabhaengig && v.websites && Object.keys(v.websites).length > 0){
       return Object.keys(v.websites).map(function(wid){
