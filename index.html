@@ -292,6 +292,23 @@ main#mainContent{padding:0 20px 30px 20px;}
   .reminder-item{display:flex;justify-content:space-between;align-items:center;gap:10px;background:#f7f8fb;padding:10px 12px;border-radius:9px;flex-wrap:wrap;}
   .reminder-sub{color:var(--muted);font-size:0.8rem;margin-top:2px;}
 
+  .todo-panel{grid-column:span 3;background:rgba(245,130,13,0.12);border:2px solid var(--accent);border-radius:10px;padding:10px 12px;max-height:260px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;}
+  .todo-panel h3{margin:0;font-size:0.95rem;color:#fff;}
+  .todo-panel-filters{display:flex;gap:8px;flex-wrap:wrap;}
+  .todo-panel-filters select{padding:5px 7px;border-radius:6px;border:1px solid var(--border);font-size:0.78rem;background:#fff;color:var(--text);}
+  .todo-panel-list{display:flex;flex-direction:column;gap:6px;}
+  .todo-panel-item{display:flex;align-items:center;gap:8px;background:#fff;color:var(--text);padding:6px 8px;border-radius:7px;font-size:0.8rem;}
+  .todo-panel-item.overdue{background:#fdeceb;}
+  .todo-panel-item.soon{background:#fff6e0;}
+  .todo-panel-item .tpi-text{flex:1;min-width:0;}
+  .todo-panel-item .tpi-meta{color:var(--muted);font-size:0.72rem;}
+  body.dark-mode .todo-panel-item{background:#1b1f36;color:var(--text);}
+  body.dark-mode .todo-panel-item.overdue{background:#3a1f1f;}
+  body.dark-mode .todo-panel-filters select{background:#1b1f36;color:var(--text);border:1px solid var(--border);}
+  .todo-fällig-overlay .confirm-panel{max-width:520px;}
+  .todo-fällig-list{display:flex;flex-direction:column;gap:8px;margin-bottom:14px;max-height:320px;overflow-y:auto;}
+  .todo-fällig-item{background:#f7f8fb;padding:8px 10px;border-radius:8px;font-size:0.85rem;}
+  body.dark-mode .todo-fällig-item{background:#1b1f36;color:var(--text);}
   @media (max-width:700px){
     .field-grid{grid-template-columns:1fr;}
     .board-column{min-width:82vw;max-width:82vw;}
@@ -316,13 +333,12 @@ main#mainContent{padding:0 20px 30px 20px;}
 
 <header class="topbar">
   <div class="topbar-row1">
-    <h1><img src="attachment://cmrngnmje0003ke0aj2k37jut" alt="Logo" style="height:34px;width:auto;vertical-align:middle;margin-right:10px;"> Publisher Automation Status</h1>
+    <h1>Publisher Automation Status</h1>
     <div class="darkmode-toggle" id="darkModeToggle" role="button" title="Dark Mode umschalten"><span>🌙 Dark Mode</span><span class="switch"><span class="knob"></span></span></div>
   </div>
   <div class="kpi-row" id="kpiRow"></div>
   <div class="tabs">
-    <button class="tab-btn active" data-tab="kanban">Kanban-Board</button>
-    <button class="tab-btn" data-tab="reminder">🔔 Aufgabe & Erinnerung</button>
+    <button class="tab-btn active" data-tab="kanban">Status Board</button>
     <button class="tab-btn" data-tab="detail">📊 Übersicht</button>
   </div>
 </header>
@@ -375,7 +391,6 @@ main#mainContent{padding:0 20px 30px 20px;}
     </div>
   </section>
 
-  <section id="reminderView" class="reminder-view hidden"></section>
   <section id="detailView" class="hidden"></section>
 </main>
 
